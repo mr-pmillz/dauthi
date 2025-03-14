@@ -60,7 +60,7 @@ const (
     <file>                 Line divided file containing brute-force values
 `
 
-	version = `v1.0.3`
+	version = `v1.0.4`
 )
 
 func main() {

@@ -463,7 +463,7 @@ func (m *MDMA) Thread() {
 //nolint:gocognit
 func (m *MDMA) Validate() {
 	switch m.Opts.Method {
-	case "Disco":
+	case "disco":
 		if m.Cycle.API == nil {
 			m.Logr.Failf([]interface{}{m.Opts.Endpoint}, "Discovery Failed")
 		} else if m.Cycle.API.Resp.Header["Location"][0] == "https://intune.microsoft.com/" {
