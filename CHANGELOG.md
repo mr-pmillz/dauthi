@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented [here](https://github.com/mr-pmillz/dauthi/blob/main/CHANGELOG.md?ref_type=heads)
 
+## [1.0.3](https://github.com/mr-pmillz/dauthi/compare/v1.0.2...v1.0.3) - 2025-03-14
+
+### ⚙️  Miscellaneous
+
+- Set disco to lowercase - ([28ad9b2](https://github.com/mr-pmillz/dauthi/commit/28ad9b2d27ce9583c5fd97702071bdc864720495))
+- Update changelog - ([b65316b](https://github.com/mr-pmillz/dauthi/commit/b65316bbfbcf4c5992dd44b1a2d46483f68b1b98))
+
 ## [1.0.2](https://github.com/mr-pmillz/dauthi/compare/v1.0.1...v1.0.2) - 2025-03-14
 
 ### ⚙️  Miscellaneous
