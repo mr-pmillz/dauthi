@@ -11,12 +11,12 @@ import (
 
 // MDMA ...
 type MDMA struct {
-	Opts     utils.ChargeOpts
-	Logr     *utils.Logger
-	Tenant   []string
-	Domain   []string
-	TokenURL string
-	Cycle
+	Opts      utils.ChargeOpts
+	Logr      *utils.Logger
+	Tenant    []string
+	Domain    []string
+	TokenURL  string
+	CycleInfo *Cycle
 }
 
 // Cycle ...
@@ -96,17 +96,23 @@ func Init(o utils.ChargeOpts) *MDMA {
 	if o.RUUID {
 		o.UUID = utils.RandUUID(21)
 	}
-	log := utils.NewLogger("intune")
+	logger := utils.NewLogger("intune")
+	emptyStringSlice := make([]string, 0)
+	emptyBoolChan := make(chan bool)
 
 	return &MDMA{
-		Opts:   o,
-		Tenant: []string{},
-		Domain: []string{},
-		Logr:   log,
-		Cycle: Cycle{
+		Opts:     o,
+		Tenant:   emptyStringSlice,
+		Domain:   emptyStringSlice,
+		Logr:     logger,
+		TokenURL: "",
+		CycleInfo: &Cycle{
+			Buff:   &emptyBoolChan,
+			Block:  &emptyBoolChan,
+			Length: 0,
 			API: &utils.API{
 				Debug: o.Debug,
-				Log:   log,
+				Log:   logger,
 				Proxy: o.Proxy},
 		},
 	}
@@ -117,8 +123,8 @@ func (m *MDMA) Clone() *MDMA {
 	clone := Init(m.Opts) // assign target
 	clone.Domain = m.Domain
 	clone.Tenant = m.Tenant
-	clone.Cycle.Block = m.Cycle.Block
-	clone.Cycle.Buff = m.Cycle.Buff
+	clone.CycleInfo.Block = m.CycleInfo.Block
+	clone.CycleInfo.Buff = m.CycleInfo.Buff
 
 	return clone
 }
@@ -127,14 +133,14 @@ func (m *MDMA) Clone() *MDMA {
 func (m *MDMA) Parser(data interface{}, p string) bool {
 	switch p {
 	case "json":
-		err := m.Cycle.API.Resp.ParseJSON(data)
+		err := m.CycleInfo.API.Resp.ParseJSON(data)
 		if err != nil {
 			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Response Marshall Error: %v", err)
 			return true
 		}
 
 	case "xml":
-		err := m.Cycle.API.Resp.ParseXML(data)
+		err := m.CycleInfo.API.Resp.ParseXML(data)
 		if err != nil {
 			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Response Marshall Error: %v", err)
 			return true
@@ -150,20 +156,20 @@ func (m *MDMA) PullDomains(silent bool) {
 		Domain []string `xml:"Body>GetFederationInformationResponseMessage>Response>Domains>Domain"`
 	}
 
-	m.Cycle.API.Name = `autodiscover`
-	m.Cycle.API.URL = tenantAPI
-	m.Cycle.API.Data = fmt.Sprintf(tenantPOST, m.Opts.Endpoint)
-	m.Cycle.API.Method = POST
-	m.Cycle.API.Opts = &map[string]interface{}{
+	m.CycleInfo.API.Name = `autodiscover`
+	m.CycleInfo.API.URL = tenantAPI
+	m.CycleInfo.API.Data = fmt.Sprintf(tenantPOST, m.Opts.Endpoint)
+	m.CycleInfo.API.Method = POST
+	m.CycleInfo.API.Opts = &map[string]interface{}{
 		"Header": map[string][]string{
 			"Content-Type":    []string{"text/xml; charset=utf-8"},
 			"SOAPAction":      []string{"http://schemas.microsoft.com/exchange/2010/Autodiscover/Autodiscover/GetFederationInformation"},
 			"User-Agent":      []string{"AutodiscoverClient"},
 			"Accept-Encoding": []string{"identity"}}}
-	m.Cycle.API.Proxy = "" // Proxy request hangs for API call?
+	m.CycleInfo.API.Proxy = "" // Proxy request hangs for API call?
 
-	m.Cycle.API.WebCall()
-	if m.Cycle.API.Resp.Status != 200 {
+	m.CycleInfo.API.WebCall()
+	if m.CycleInfo.API.Resp.Status != 200 {
 		m.Logr.Failf([]interface{}{m.Opts.Method}, "Tenant Request Failed")
 		return
 	}
@@ -207,20 +213,20 @@ func (m *MDMA) GetToken() {
 		TokenURL string `json:"token_endpoint"`
 	}
 
-	m.Cycle.API.Name = `openid-query`
-	m.Cycle.API.URL = fmt.Sprintf(openIDAPI, m.Opts.Endpoint)
-	m.Cycle.API.Data = ""
-	m.Cycle.API.Method = GET
-	m.Cycle.API.Opts = &map[string]interface{}{
+	m.CycleInfo.API.Name = `openid-query`
+	m.CycleInfo.API.URL = fmt.Sprintf(openIDAPI, m.Opts.Endpoint)
+	m.CycleInfo.API.Data = ""
+	m.CycleInfo.API.Method = GET
+	m.CycleInfo.API.Opts = &map[string]interface{}{
 		"Header": map[string][]string{
 			"User-Agent": []string{m.Opts.Agent}}}
 
-	m.Cycle.API.WebCall()
+	m.CycleInfo.API.WebCall()
 
 	// Validate response status
-	if m.Cycle.API.Resp.Status != 200 {
+	if m.CycleInfo.API.Resp.Status != 200 {
 		if m.Opts.Debug > 0 {
-			m.Logr.Debugf([]interface{}{m.Opts.Endpoint}, "Invalid Server Response Code: %v", m.Cycle.API.Resp.Status)
+			m.Logr.Debugf([]interface{}{m.Opts.Endpoint}, "Invalid Server Response Code: %v", m.CycleInfo.API.Resp.Status)
 		}
 		m.Logr.Errorf([]interface{}{"openid-query"}, "Failed to identify Tenant ID")
 		return
@@ -235,18 +241,22 @@ func (m *MDMA) GetToken() {
 
 // Disco ...
 func (m *MDMA) Disco() {
-	m.Cycle.API.Name = `discoveryAPI`
-	m.Cycle.API.URL = fmt.Sprintf(discoveryAPI, m.Opts.Endpoint)
-	m.Cycle.API.Data = ""
-	m.Cycle.API.Method = GET
-	m.Cycle.API.Opts = nil
-
-	m.Cycle.API.WebCall()
+	m.CycleInfo.API.Name = `discoveryAPI`
+	m.CycleInfo.API.URL = fmt.Sprintf(discoveryAPI, m.Opts.Endpoint)
+	m.CycleInfo.API.Data = ""
+	m.CycleInfo.API.Method = GET
+	m.CycleInfo.API.Opts = &map[string]interface{}{
+		"Header": map[string][]string{
+			"User-Agent": []string{m.Opts.Agent},
+		},
+	}
+	m.CycleInfo.API.Log = m.Logr
+	m.CycleInfo.API.WebCall()
 
 	// Validate response status
-	if m.Cycle.API.Resp.Status != 302 {
+	if m.CycleInfo.API.Resp.Status != 302 {
 		if m.Opts.Debug > 0 {
-			m.Logr.Debugf([]interface{}{m.Opts.Endpoint}, "Invalid Server Response Code: %v", m.Cycle.API.Resp.Status)
+			m.Logr.Debugf([]interface{}{m.Opts.Endpoint}, "Invalid Server Response Code: %v", m.CycleInfo.API.Resp.Status)
 		}
 		m.Logr.Failf([]interface{}{m.Opts.Endpoint}, "Discovery Failed")
 		return
@@ -256,19 +266,20 @@ func (m *MDMA) Disco() {
 
 // Prof ...
 func (m *MDMA) Prof() {
-	m.Cycle.API.Name = m.Opts.Method
-	m.Cycle.API.URL = outlookMobileAPI
-	m.Cycle.API.Data = ""
-	m.Cycle.API.Method = GET
-	m.Cycle.API.Opts = &map[string]interface{}{
+	m.CycleInfo.API.Name = m.Opts.Method
+	m.CycleInfo.API.URL = outlookMobileAPI
+	m.CycleInfo.API.Data = ""
+	m.CycleInfo.API.Method = GET
+	m.CycleInfo.API.Opts = &map[string]interface{}{
 		"Header": map[string][]string{
 			"User-Agent": []string{m.Opts.Agent},
-			"X-Email":    []string{m.Opts.UserName}}}
-
-	m.Cycle.API.WebCall()
+			"X-Email":    []string{m.Opts.UserName},
+		},
+	}
+	m.CycleInfo.API.WebCall()
 
 	// Validate response status
-	if m.Cycle.API.Resp.Status != 200 {
+	if m.CycleInfo.API.Resp.Status != 200 {
 		m.Logr.Failf([]interface{}{m.Opts.Endpoint}, "Profiling Failed")
 		return
 	}
@@ -292,12 +303,12 @@ func (m *MDMA) Auth() {
 	lines := strings.Split(string(file), "\n")
 	block := make(chan bool, m.Opts.Threads)
 	buff := make(chan bool, len(lines))
-	m.Cycle.Block = &block
-	m.Cycle.Buff = &buff
-	m.Cycle.Length = len(lines)
+	m.CycleInfo.Block = &block
+	m.CycleInfo.Buff = &buff
+	m.CycleInfo.Length = len(lines)
 
 	if m.Opts.Method != enumOneDriveFull {
-		m.Logr.Infof([]interface{}{m.Opts.Method}, "threading %d values across %d threads", m.Cycle.Length, m.Opts.Threads)
+		m.Logr.Infof([]interface{}{m.Opts.Method}, "threading %d values across %d threads", m.CycleInfo.Length, m.Opts.Threads)
 	}
 
 	if m.Opts.Method == authMSOL {
@@ -310,7 +321,7 @@ func (m *MDMA) Auth() {
 
 	for _, line := range lines {
 		if len(lines) > 1 && line == "" {
-			*m.Cycle.Buff <- false
+			*m.CycleInfo.Buff <- false
 			continue
 		}
 
@@ -326,11 +337,11 @@ func (m *MDMA) Auth() {
 		case enumOneDrive:
 			udscore := regexp.MustCompile(`(?:@|\.)`)
 
-			target.Cycle.API.Name = target.Opts.Method
-			target.Cycle.API.URL = fmt.Sprintf(onedriveAPI, target.Opts.Tenant, udscore.ReplaceAllString(target.Opts.UserName+"@"+target.Opts.Endpoint, `_`))
-			target.Cycle.API.Data = ""
-			target.Cycle.API.Method = GET
-			target.Cycle.API.Opts = &map[string]interface{}{
+			target.CycleInfo.API.Name = target.Opts.Method
+			target.CycleInfo.API.URL = fmt.Sprintf(onedriveAPI, target.Opts.Tenant, udscore.ReplaceAllString(target.Opts.UserName+"@"+target.Opts.Endpoint, `_`))
+			target.CycleInfo.API.Data = ""
+			target.CycleInfo.API.Method = GET
+			target.CycleInfo.API.Opts = &map[string]interface{}{
 				"Header": map[string][]string{
 					"User-Agent": []string{target.Opts.Agent}}}
 
@@ -361,11 +372,11 @@ func (m *MDMA) Auth() {
 			} else {
 				udscore := regexp.MustCompile(`(?:@|\.)`)
 
-				target.Cycle.API.Name = target.Opts.Method
-				target.Cycle.API.URL = fmt.Sprintf(onedriveAPI, target.Opts.Tenant, udscore.ReplaceAllString(target.Opts.UserName+"@"+target.Opts.Endpoint, `_`))
-				target.Cycle.API.Data = ""
-				target.Cycle.API.Method = GET
-				target.Cycle.API.Opts = &map[string]interface{}{
+				target.CycleInfo.API.Name = target.Opts.Method
+				target.CycleInfo.API.URL = fmt.Sprintf(onedriveAPI, target.Opts.Tenant, udscore.ReplaceAllString(target.Opts.UserName+"@"+target.Opts.Endpoint, `_`))
+				target.CycleInfo.API.Data = ""
+				target.CycleInfo.API.Method = GET
+				target.CycleInfo.API.Opts = &map[string]interface{}{
 					"Header": map[string][]string{
 						"User-Agent": []string{target.Opts.Agent}}}
 
@@ -374,21 +385,21 @@ func (m *MDMA) Auth() {
 			}
 
 		case enumOutlook:
-			target.Cycle.API.Name = target.Opts.Method
-			target.Cycle.API.URL = outlookMobileAPI
-			target.Cycle.API.Data = ""
-			target.Cycle.API.Method = GET
-			target.Cycle.API.Opts = &map[string]interface{}{
+			target.CycleInfo.API.Name = target.Opts.Method
+			target.CycleInfo.API.URL = outlookMobileAPI
+			target.CycleInfo.API.Data = ""
+			target.CycleInfo.API.Method = GET
+			target.CycleInfo.API.Opts = &map[string]interface{}{
 				"Header": map[string][]string{
 					"User-Agent": []string{target.Opts.Agent},
 					"X-Email":    []string{target.Opts.UserName}}}
 
 		case authMSOL:
-			target.Cycle.API.Name = target.Opts.Method
-			target.Cycle.API.URL = m.TokenURL
-			target.Cycle.API.Data = fmt.Sprintf(msolPOST, target.Opts.UserName, target.Opts.Password)
-			target.Cycle.API.Method = POST
-			target.Cycle.API.Opts = &map[string]interface{}{
+			target.CycleInfo.API.Name = target.Opts.Method
+			target.CycleInfo.API.URL = m.TokenURL
+			target.CycleInfo.API.Data = fmt.Sprintf(msolPOST, target.Opts.UserName, target.Opts.Password)
+			target.CycleInfo.API.Method = POST
+			target.CycleInfo.API.Opts = &map[string]interface{}{
 				"Header": map[string][]string{
 					"Accept-Encoding": []string{"gzip, deflate"},
 					"Accept":          []string{"application/json"},
@@ -396,11 +407,11 @@ func (m *MDMA) Auth() {
 					"User-Agent":      []string{"Windows-AzureAD-Authentication-Provider/1.0 3236.84364"}}}
 
 		case authOutlook:
-			target.Cycle.API.Name = target.Opts.Method
-			target.Cycle.API.URL = outlookAuthAPI
-			target.Cycle.API.Data = fmt.Sprintf(outlookAuthAPIPost, target.Opts.UserName, target.Opts.Password, target.Opts.Email, target.Opts.Email)
-			target.Cycle.API.Method = POST
-			target.Cycle.API.Opts = &map[string]interface{}{
+			target.CycleInfo.API.Name = target.Opts.Method
+			target.CycleInfo.API.URL = outlookAuthAPI
+			target.CycleInfo.API.Data = fmt.Sprintf(outlookAuthAPIPost, target.Opts.UserName, target.Opts.Password, target.Opts.Email, target.Opts.Email)
+			target.CycleInfo.API.Method = POST
+			target.CycleInfo.API.Opts = &map[string]interface{}{
 				"Header": map[string][]string{
 					"X-DeviceType": []string{"Android"},
 					"Accept":       []string{"application/json"},
@@ -410,11 +421,11 @@ func (m *MDMA) Auth() {
 					"Content-Type": []string{"application/json"}}}
 
 		case authAsync:
-			target.Cycle.API.Name = target.Opts.Method
-			target.Cycle.API.URL = asyncAPI
-			target.Cycle.API.Data = ``
-			target.Cycle.API.Method = `OPTIONS`
-			target.Cycle.API.Opts = &map[string]interface{}{
+			target.CycleInfo.API.Name = target.Opts.Method
+			target.CycleInfo.API.URL = asyncAPI
+			target.CycleInfo.API.Data = ``
+			target.CycleInfo.API.Method = `OPTIONS`
+			target.CycleInfo.API.Opts = &map[string]interface{}{
 				"Header": map[string][]string{
 					"User-Agent":    []string{target.Opts.Agent},
 					"Authorization": []string{b64encode([]byte(target.Opts.UserName + ":" + target.Opts.Password))},
@@ -426,24 +437,24 @@ func (m *MDMA) Auth() {
 		target.Thread()
 	}
 
-	for i := 0; i < m.Cycle.Length; i++ {
-		<-*m.Cycle.Buff
+	for i := 0; i < m.CycleInfo.Length; i++ {
+		<-*m.CycleInfo.Buff
 	}
-	close(*m.Cycle.Block)
-	close(*m.Cycle.Buff)
+	close(*m.CycleInfo.Block)
+	close(*m.CycleInfo.Buff)
 }
 
 // Thread represents the threading process to loop multiple requests
 func (m *MDMA) Thread() {
-	*m.Cycle.Block <- true
+	*m.CycleInfo.Block <- true
 	go func() {
-		m.Cycle.API.WebCall()
+		m.CycleInfo.API.WebCall()
 
-		if m.Cycle.API.Resp.Status == 0 {
+		if m.CycleInfo.API.Resp.Status == 0 {
 			if m.Opts.Miss < m.Opts.Retry {
 				m.Opts.Miss++
 				m.Logr.Infof([]interface{}{m.Opts.Tenant, m.Opts.Endpoint, m.Opts.UserName, m.Opts.Password}, "Retrying Request")
-				<-*m.Cycle.Block
+				<-*m.CycleInfo.Block
 				m.Thread()
 				return
 			}
@@ -453,8 +464,8 @@ func (m *MDMA) Thread() {
 
 		// Sleep interval through Thread loop
 		time.Sleep(time.Duration(m.Opts.Sleep) * time.Second)
-		<-*m.Cycle.Block
-		*m.Cycle.Buff <- true
+		<-*m.CycleInfo.Block
+		*m.CycleInfo.Buff <- true
 	}()
 }
 
@@ -464,16 +475,16 @@ func (m *MDMA) Thread() {
 func (m *MDMA) Validate() {
 	switch m.Opts.Method {
 	case "disco":
-		if m.Cycle.API == nil {
+		if m.CycleInfo.API == nil {
 			m.Logr.Failf([]interface{}{m.Opts.Endpoint}, "Discovery Failed")
-		} else if m.Cycle.API.Resp.Header["Location"][0] == "https://intune.microsoft.com/" {
+		} else if m.CycleInfo.API.Resp.Header["Location"][0] == "https://intune.microsoft.com/" {
 			m.Logr.Successf([]interface{}{"intune.microsoft.com"}, "Endpoint Discovered")
 		}
 
 	case enumOneDrive, enumOneDriveFull:
-		if m.Cycle.API.Resp.Status == 302 {
-			if len(m.Cycle.API.Resp.Header["Location"]) > 0 {
-				if strings.Contains(m.Cycle.API.Resp.Header["Location"][0], "my.sharepoint.com") {
+		if m.CycleInfo.API.Resp.Status == 302 {
+			if len(m.CycleInfo.API.Resp.Header["Location"]) > 0 {
+				if strings.Contains(m.CycleInfo.API.Resp.Header["Location"][0], "my.sharepoint.com") {
 					m.Logr.Successf([]interface{}{m.Opts.Tenant, m.Opts.Endpoint, m.Opts.UserName}, "Valid User")
 				} else {
 					break
@@ -500,7 +511,7 @@ func (m *MDMA) Validate() {
 			} `json:"protocols"`
 		}
 
-		if m.Cycle.API.Resp.Status != 200 {
+		if m.CycleInfo.API.Resp.Status != 200 {
 			m.Logr.Failf([]interface{}{m.Opts.Endpoint}, "Nonexistent Domain")
 			return
 		} else if m.Parser(&check, "json") {
@@ -529,9 +540,9 @@ func (m *MDMA) Validate() {
 
 	case authMSOL:
 		switch {
-		case m.Cycle.API.Resp.Status == 200:
+		case m.CycleInfo.API.Resp.Status == 200:
 			m.Logr.Successf([]interface{}{m.Opts.UserName, m.Opts.Password}, "Successful Authentication")
-		case m.Cycle.API.Resp.Status == 400:
+		case m.CycleInfo.API.Resp.Status == 400:
 			var check struct {
 				Error string `json:"error_description"`
 			}
@@ -547,10 +558,10 @@ func (m *MDMA) Validate() {
 
 	case authOutlook:
 		m.Logr.Infof([]interface{}{m.Opts.Method}, "Under development")
-		m.Logr.Infof([]interface{}{m.Opts.Method}, "Status: %v - Headers: %v - Body: %s", m.Cycle.API.Resp.Status, m.Cycle.API.Resp.Header, m.Cycle.API.Resp.Body)
+		m.Logr.Infof([]interface{}{m.Opts.Method}, "Status: %v - Headers: %v - Body: %s", m.CycleInfo.API.Resp.Status, m.CycleInfo.API.Resp.Header, m.CycleInfo.API.Resp.Body)
 
 	case authAsync:
-		if m.Cycle.API.Resp.Status == 200 {
+		if m.CycleInfo.API.Resp.Status == 200 {
 			m.Logr.Successf([]interface{}{m.Opts.UserName, m.Opts.Password}, "Successful Authentication")
 			return
 		}
