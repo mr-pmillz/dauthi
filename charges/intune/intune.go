@@ -561,10 +561,10 @@ func (m *MDMA) Validate() {
 // Call represents the switch function for activating all class methods
 func (m *MDMA) Call() {
 	switch m.Opts.Method {
-	case "Disco":
+	case "disco":
 		m.Disco()
 
-	case "Disco-Tenant":
+	case "disco-tenant":
 		m.PullDomains(false)
 
 	case ProfOutlook:

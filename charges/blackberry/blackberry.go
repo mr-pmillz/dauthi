@@ -299,7 +299,7 @@ func (m *MDMA) Thread() {
 
 func (m *MDMA) Validate() {
 	switch m.Opts.Method {
-	case "Disco":
+	case "disco":
 		var check struct {
 			ResponseCode   int               `xml:"responseCode"`
 			ActivationInfo string            `xml:"config>activationInfo"`
@@ -321,7 +321,7 @@ func (m *MDMA) Validate() {
 
 		m.Logr.Successf([]interface{}{m.Opts.Endpoint, check.Endpoint["serverAddress"]}, "Endpoint Discovered")
 
-	case "Prof":
+	case "prof":
 		m.Logr.Successf(nil, "Temporary Profile: \n%s\n", m.Cycle.API.Resp.Header)
 
 	case _authUser:
@@ -340,7 +340,7 @@ func (m *MDMA) Validate() {
 // Call represents the switch function for activating all class methods
 func (m *MDMA) Call() {
 	switch m.Opts.Method {
-	case "Disco":
+	case "disco":
 		if m.Opts.Email == "" {
 			email := "dave@" + m.Opts.Endpoint
 			m.Logr.Infof([]interface{}{m.Opts.Method}, "Using sample email: %s", email)
@@ -348,7 +348,7 @@ func (m *MDMA) Call() {
 		}
 		m.Disco()
 
-	case "Prof":
+	case "prof":
 		if m.Opts.Endpoint == "" {
 			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Endpoint required")
 			return

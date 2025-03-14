@@ -468,7 +468,7 @@ func (m *MDMA) Thread() {
 
 func (m *MDMA) Validate() {
 	switch m.Opts.Method {
-	case "Disco", "DiscoTenant":
+	case "disco", "DiscoTenant":
 		var check struct {
 			EnrollURL   string `json:"EnrollmentUrl"`
 			GroupID     string `json:"GroupId"`
@@ -517,7 +517,7 @@ func (m *MDMA) Validate() {
 			m.Logr.Failf([]interface{}{m.Opts.Endpoint}, "Discovery Failed: %s", check.Message)
 		}
 
-	case "Prof":
+	case "prof":
 		var check struct {
 			Next struct {
 				Type int `json:"Type"`
@@ -599,14 +599,14 @@ func (m *MDMA) Call() {
 		return
 	}
 	switch m.Opts.Method {
-	case "Disco":
+	case "disco":
 		if m.Opts.Email == "" {
 			email := "dave@" + m.Opts.Endpoint
 			m.Logr.Infof([]interface{}{m.Opts.Method}, "Using sample email: %s", email)
 			m.Opts.Email = email
 		}
 		m.Disco()
-	case "Prof":
+	case "prof":
 		if m.Opts.GroupID == "" && (m.Opts.SubGroup == "" || m.Opts.SubGroupINT == 0) {
 			m.Logr.Errorf([]interface{}{m.Opts.Method}, "GroupID/SubGroup and/or SubGroupINT required")
 			return

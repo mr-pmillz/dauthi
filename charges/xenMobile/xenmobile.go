@@ -216,7 +216,7 @@ func (m *MDMA) Thread() {
 // Validate ...
 func (m *MDMA) Validate() {
 	switch m.Opts.Method {
-	case "Disco":
+	case "disco":
 		var check struct {
 			WorkSpace struct {
 				URL []struct {
@@ -237,7 +237,7 @@ func (m *MDMA) Validate() {
 			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Failed to identify Endpoints")
 		}
 
-	case "Prof":
+	case "prof":
 		var check struct {
 			Enabled  bool `xml:"result>serverInfo>enrollmentConfig>enrollmentEnabled"`
 			PIN      bool `xml:"result>serverInfo>enrollmentConfig>enrollmentPIN"`
@@ -283,13 +283,13 @@ func (m *MDMA) Validate() {
 // Call represents the switch function for activating all class methods
 func (m *MDMA) Call() {
 	switch m.Opts.Method {
-	case "Disco":
+	case "disco":
 		if m.Opts.Endpoint == "" {
 			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Endpoint required")
 		}
 		m.Disco()
 
-	case "Prof":
+	case "prof":
 		if m.Opts.Endpoint == "" {
 			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Endpoint required")
 			return

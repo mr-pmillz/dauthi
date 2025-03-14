@@ -454,7 +454,7 @@ func (m *MDMA) Thread() {
 // Validate result takes a byte array and validates the MobileIron response
 func (m *MDMA) Validate() {
 	switch m.Opts.Method {
-	case "Disco":
+	case "disco":
 		var check struct {
 			Result struct {
 				HostName string `json:"hostName"`
@@ -471,7 +471,7 @@ func (m *MDMA) Validate() {
 		}
 		m.Logr.Failf([]interface{}{m.Opts.Endpoint}, "Discovery Failed")
 
-	case "Prof", authUser, _enum, authPin, authPinPass, authPinUser:
+	case "prof", authUser, _enum, authPin, authPinPass, authPinUser:
 		type action struct {
 			name string
 			pre  []interface{}
@@ -529,14 +529,14 @@ func (m *MDMA) Validate() {
 // Call represents the switch function for activating all class methods
 func (m *MDMA) Call() {
 	switch m.Opts.Method {
-	case "Disco":
+	case "disco":
 		if m.Opts.Endpoint == "" {
 			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Domain required")
 			return
 		}
 		m.Disco()
 
-	case "Prof":
+	case "prof":
 		if m.Opts.Endpoint == "" {
 			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Endpoint required")
 			return
