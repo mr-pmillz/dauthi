@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -18,7 +19,7 @@ import (
 	"golang.org/x/net/proxy"
 )
 
-// CLI options for charge initialization
+// ChargeOpts CLI options for charge initialization
 type ChargeOpts struct {
 	Agent       string
 	Cookie      string
@@ -65,12 +66,12 @@ type API struct {
 	Base   int
 	Offset int
 	Proxy  string
-	Resp   resp
+	Resp   Resp
 }
 
-// RESP represents the struct for connection responses
+// Resp represents the struct for connection responses
 // of HTTP/HTTPS/TCP based connections
-type resp struct {
+type Resp struct {
 	Status int
 	Header map[string][]string
 	Body   []byte
@@ -83,7 +84,10 @@ type resp struct {
 // should be half the required output length.
 func RandUUID(size int) string {
 	uuid := make([]byte, size)
-	io.ReadFull(rand.Reader, uuid)
+	_, err := io.ReadFull(rand.Reader, uuid)
+	if err != nil {
+		return ""
+	}
 	return fmt.Sprintf("%x", uuid)
 }
 
@@ -97,8 +101,8 @@ func Resolver(host string) bool {
 	return err == nil
 }
 
-// ParseJSON(check) is a wrapper for json.Unmarshal
-func (r *resp) ParseJSON(check interface{}) error {
+// ParseJSON is a wrapper for json.Unmarshal
+func (r *Resp) ParseJSON(check interface{}) error {
 	err := json.Unmarshal(r.Body, check)
 	if err != nil {
 		return err
@@ -106,8 +110,8 @@ func (r *resp) ParseJSON(check interface{}) error {
 	return nil
 }
 
-// ParseXML(check) is a wrapper for xml.Unmarshal
-func (r *resp) ParseXML(check interface{}) error {
+// ParseXML is a wrapper for xml.Unmarshal
+func (r *Resp) ParseXML(check interface{}) error {
 	err := xml.Unmarshal(r.Body, check)
 	if err != nil {
 		return err
@@ -117,7 +121,7 @@ func (r *resp) ParseXML(check interface{}) error {
 
 func (api *API) WebCall() {
 	tlsConfig := &tls.Config{
-		InsecureSkipVerify: true,
+		InsecureSkipVerify: true, //nolint:gosec
 	}
 	transport := &http.Transport{TLSClientConfig: tlsConfig}
 	// Support proxy connections for web requests
@@ -127,7 +131,10 @@ func (api *API) WebCall() {
 			api.Log.Errorf([]interface{}{api.Name}, "Failed to establish SOCKS connection %v", err)
 			return
 		}
-		transport.Dial = socks.Dial
+		// Use DialContext instead of deprecated Dial
+		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return socks.Dial(network, addr)
+		}
 	}
 
 	client := &http.Client{
@@ -188,10 +195,10 @@ func (api *API) WebCall() {
 	}
 }
 
-// SocketCall is the function for executing a TLS socket request
+// SocketTLSDial is the function for executing a TLS socket request
 func (api *API) SocketTLSDial() {
 	tlsConfig := &tls.Config{
-		InsecureSkipVerify: true,
+		InsecureSkipVerify: true, //nolint:gosec
 	}
 
 	var conn *tls.Conn

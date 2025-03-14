@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"dauthi/charges"
-	"dauthi/utils"
+	"github.com/mr-pmillz/dauthi/charges"
+	"github.com/mr-pmillz/dauthi/utils"
 )
 
 const (
@@ -29,6 +29,7 @@ const (
      E#t       ,,,      .,,   :            :                  ,;.
      L:                                                          
                                                    @emptynebuli
+                                                   @mr-pmillz
      `
 
 	usage = `
@@ -108,17 +109,21 @@ func main() {
 	// Flags requires first argument to be of -value context to parse correctly
 	// Flags will count the arg length with offset +1
 	if len(os.Args) > 1 {
-		if os.Args[1] == "disco" {
+		switch {
+		case os.Args[1] == "disco":
 			flMDMA = os.Args[1]
 			os.Args = os.Args[1:]
-		} else if len(os.Args) < 2 {
+
+		case len(os.Args) < 2:
 			fmt.Printf("%s%s[ERROR] Unrecognized Option ", banner, usage)
 			os.Exit(1)
-		} else if !strings.HasPrefix(os.Args[1], "-") && !strings.HasPrefix(os.Args[2], "-") {
+
+		case !strings.HasPrefix(os.Args[1], "-") && !strings.HasPrefix(os.Args[2], "-"):
 			flMDMA = os.Args[1]
 			flMethod = os.Args[2]
 			os.Args = os.Args[2:]
-		} else if !strings.HasPrefix(os.Args[1], "-") {
+
+		case !strings.HasPrefix(os.Args[1], "-"):
 			flMDMA = os.Args[1]
 			os.Args = os.Args[1:]
 		}
@@ -174,24 +179,34 @@ func main() {
 	}
 
 	// Increase Debug verbosity
-	if *flVVDebug {
-		opts.Debug = 3
-	} else if *flVDebug {
-		opts.Debug = 2
-	} else if *flDebug {
-		opts.Debug = 1
-	} else {
-		opts.Debug = 0
-	}
+	opts.Debug = setDebugLevel(flVVDebug, flVDebug, flDebug)
 
 	if !*flSilent {
 		fmt.Println(banner)
 	}
 
 	mdma := charges.Init(flMDMA, opts)
-	if ok := mdma == nil; !ok {
+	processMDMA(mdma, flMDMA, opts.Endpoint)
+}
+
+// processMDMA processes an MDM attack instance and initiates the corresponding charge action or displays an error when invalid.
+func processMDMA(mdma *charges.Attack, chargeType, endpoint string) {
+	if mdma == nil && chargeType != "disco" {
+		fmt.Println(usage + charges.Usage(endpoint) + "[ERROR] Unknown Charge")
+	} else if mdma != nil {
 		mdma.Call()
-	} else if flMDMA != "disco" {
-		fmt.Println(usage + charges.Usage(opts.Endpoint) + "[ERROR] Unknown Charge")
+	}
+}
+
+func setDebugLevel(flVVDebug, flVDebug, flDebug *bool) int {
+	switch {
+	case *flVVDebug:
+		return 3
+	case *flVDebug:
+		return 2
+	case *flDebug:
+		return 1
+	default:
+		return 0
 	}
 }

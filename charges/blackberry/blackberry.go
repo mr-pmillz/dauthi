@@ -14,20 +14,22 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 
-	"dauthi/utils"
+	"github.com/mr-pmillz/dauthi/utils"
 )
 
-type mdma struct {
-	opts utils.ChargeOpts
-	logr *utils.Logger
-	cycle
+// MDMA ...
+type MDMA struct {
+	Opts utils.ChargeOpts
+	Logr *utils.Logger
+	Cycle
 }
 
-type cycle struct {
-	buff   *chan bool
-	block  *chan bool
-	length int
-	api    *utils.API
+// Cycle ...
+type Cycle struct {
+	Buff   *chan bool
+	Block  *chan bool
+	Length int
+	API    *utils.API
 }
 
 const (
@@ -43,10 +45,10 @@ const (
 	// Methods are available tool methods
 	Methods = `
   BlackBerry Methods:
-    disco                  BlackBerry endpoint discovery query
+    Disco                  BlackBerry endpoint discovery query
     decrypt                Decrypt BlackBerry username details
-    prof                   Profile the BlackBerry provisioning details
-    auth-user              BlackBerry user based authentication
+    Prof                   Profile the BlackBerry provisioning details
+    Auth-user              BlackBerry user based authentication
 	`
 	// HMACSHA512 static salt
 	hmacsalt = "\xA4\x6B\xF8\x4C\xD3\x0B\xD0\x99\x49\xCA\x01\x12\xB0\x01\x4B\xE3"
@@ -74,6 +76,7 @@ const (
 		`</osFamily><osVersion>11</osVersion><userId>%s</userId></requestInfoType>`
 	postEnrol = `<?xml version="1.0"?><enrollment version="3.0"><transaction-id>%s</transaction-id>` +
 		`<speke-request><user-id>0;1;%s</user-id><client-public-key>%s</client-public-key></speke-request></enrollment>`
+	_authUser = "Auth-user"
 )
 
 func b64encode(v []byte) string {
@@ -93,7 +96,7 @@ func sha512hmac(time string) string {
 }
 
 func pkcs5Padding(ciphertext []byte, blockSize int, after int) []byte {
-	padding := (blockSize - len(ciphertext)%blockSize)
+	padding := blockSize - len(ciphertext)%blockSize
 	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
 	return append(ciphertext, padtext...)
 }
@@ -119,18 +122,18 @@ func aes256decrypt(v string) []byte {
 	return append(pre, data...)
 }
 
-// Init mdma with default values and return obj
-func Init(o utils.ChargeOpts) *mdma {
+// Init MDMA with default values and return obj
+func Init(o utils.ChargeOpts) *MDMA {
 	if o.Agent == "" {
 		o.Agent = "Agent/20.08.0.23/Android/11"
 	}
 	log := utils.NewLogger("blackberry")
 
-	return &mdma{
-		opts: o,
-		logr: log,
-		cycle: cycle{
-			api: &utils.API{
+	return &MDMA{
+		Opts: o,
+		Logr: log,
+		Cycle: Cycle{
+			API: &utils.API{
 				Debug: o.Debug,
 				Log:   log,
 				Proxy: o.Proxy},
@@ -138,29 +141,29 @@ func Init(o utils.ChargeOpts) *mdma {
 	}
 }
 
-// clone() copies an *mdma for process threading
-func (m *mdma) clone() *mdma {
-	clone := Init(m.opts) // assign target
-	clone.cycle.block = m.cycle.block
-	clone.cycle.buff = m.cycle.buff
+// Clone copies an *MDMA for process threading
+func (m *MDMA) Clone() *MDMA {
+	clone := Init(m.Opts) // assign target
+	clone.Cycle.Block = m.Cycle.Block
+	clone.Cycle.Buff = m.Cycle.Buff
 
 	return clone
 }
 
 // Wrapper to parse JSON/XML objects
-func (m *mdma) parser(data interface{}, p string) bool {
+func (m *MDMA) parser(data interface{}, p string) bool {
 	switch p {
 	case "json":
-		err := m.cycle.api.Resp.ParseJSON(data)
+		err := m.Cycle.API.Resp.ParseJSON(data)
 		if err != nil {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "Response Marshall Error: %v", err)
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Response Marshall Error: %v", err)
 			return true
 		}
 
 	case "xml":
-		err := m.cycle.api.Resp.ParseXML(data)
+		err := m.Cycle.API.Resp.ParseXML(data)
 		if err != nil {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "Response Marshall Error: %v", err)
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Response Marshall Error: %v", err)
 			return true
 		}
 	}
@@ -168,14 +171,14 @@ func (m *mdma) parser(data interface{}, p string) bool {
 	return false
 }
 
-func (m *mdma) disco() {
+func (m *MDMA) Disco() {
 	tstamp := fmt.Sprintf("%v", time.Now().UnixMilli())
 
-	m.cycle.api.Name = `discoveryAPI`
-	m.cycle.api.URL = discoveryAPI
-	m.cycle.api.Data = fmt.Sprintf(postDiscovery, m.opts.Email)
-	m.cycle.api.Method = `POST`
-	m.cycle.api.Opts = &map[string]interface{}{
+	m.Cycle.API.Name = `discoveryAPI`
+	m.Cycle.API.URL = discoveryAPI
+	m.Cycle.API.Data = fmt.Sprintf(postDiscovery, m.Opts.Email)
+	m.Cycle.API.Method = `POST`
+	m.Cycle.API.Opts = &map[string]interface{}{
 		"Header": map[string][]string{
 			"RequestVersion":  []string{"1.0"},
 			"X-Timestamp":     []string{tstamp},
@@ -183,121 +186,120 @@ func (m *mdma) disco() {
 			"X-AuthToken":     []string{sha512hmac(tstamp)},
 			"Accept":          []string{"application/xml"},
 			"X-AuthType":      []string{"android"},
-			"User-Agent":      []string{m.opts.Agent},
+			"User-Agent":      []string{m.Opts.Agent},
 			"Accept-Encoding": []string{"gzip, deflate"}}}
 
-	m.cycle.api.WebCall()
-	if m.cycle.api.Resp.Status != 200 {
-		m.logr.Failf([]interface{}{m.opts.Endpoint}, "Discovery Failed")
+	m.Cycle.API.WebCall()
+	if m.Cycle.API.Resp.Status != 200 {
+		m.Logr.Failf([]interface{}{m.Opts.Endpoint}, "Discovery Failed")
 		return
 	}
 
-	m.validate()
+	m.Validate()
 }
 
-func (m *mdma) prof() {
-	parsedURL, _ := URL.Parse(m.opts.Endpoint)
+func (m *MDMA) Prof() {
+	parsedURL, _ := URL.Parse(m.Opts.Endpoint)
 
-	m.cycle.api.Name = `profileAPI`
-	m.cycle.api.URL = fmt.Sprintf(profileAPI, parsedURL.Host, parsedURL.Path)
-	m.cycle.api.Data = ""
-	m.cycle.api.Method = `OPTIONS`
-	m.cycle.api.Opts = &map[string]interface{}{
+	m.Cycle.API.Name = `profileAPI`
+	m.Cycle.API.URL = fmt.Sprintf(profileAPI, parsedURL.Host, parsedURL.Path)
+	m.Cycle.API.Data = ""
+	m.Cycle.API.Method = `OPTIONS`
+	m.Cycle.API.Opts = &map[string]interface{}{
 		"Header": map[string][]string{
-			"User-Agent": []string{m.opts.Agent}}}
+			"User-Agent": []string{m.Opts.Agent}}}
 
-	m.cycle.api.WebCall()
-	if m.cycle.api.Resp.Header == nil {
-		m.logr.Failf([]interface{}{m.opts.Endpoint}, "Profile Failed")
+	m.Cycle.API.WebCall()
+	if m.Cycle.API.Resp.Header == nil {
+		m.Logr.Failf([]interface{}{m.Opts.Endpoint}, "Profile Failed")
 		return
 	}
-	m.validate()
+	m.Validate()
 }
 
-func (m *mdma) auth() {
-	parsedURL, _ := URL.Parse(m.opts.Endpoint)
+func (m *MDMA) Auth() {
+	parsedURL, _ := URL.Parse(m.Opts.Endpoint)
 	var file []byte
 	var err error
 
-	if m.opts.File != "" {
-		file, err = utils.ReadFile(m.opts.File)
+	if m.Opts.File != "" {
+		file, err = utils.ReadFile(m.Opts.File)
 		if err != nil {
-			m.logr.Fatalf([]interface{}{m.opts.File}, "File Read Failure")
+			m.Logr.Fatalf([]interface{}{m.Opts.File}, "File Read Failure")
 		}
 	}
 
 	lines := strings.Split(string(file), "\n")
-	block := make(chan bool, m.opts.Threads)
+	block := make(chan bool, m.Opts.Threads)
 	buff := make(chan bool, len(lines))
-	m.cycle.block = &block
-	m.cycle.buff = &buff
-	m.cycle.length = len(lines)
+	m.Cycle.Block = &block
+	m.Cycle.Buff = &buff
+	m.Cycle.Length = len(lines)
 
-	m.logr.Infof([]interface{}{m.opts.Method}, "buffing %d values across %d buffs", m.cycle.length, m.opts.Threads)
+	m.Logr.Infof([]interface{}{m.Opts.Method}, "buffing %d values across %d buffs", m.Cycle.Length, m.Opts.Threads)
 
 	for _, line := range lines {
 		if len(lines) > 1 && line == "" {
-			*m.cycle.buff <- true
+			*m.Cycle.Buff <- true
 			continue
 		}
 
-		target := m.clone() // assign target
+		target := m.Clone() // assign target
 
-		switch m.opts.Method {
-		case "auth-user":
+		if m.Opts.Method == _authUser {
 			if line == "" {
-				line = target.opts.UserName
+				_ = target.Opts.UserName
 			} else {
-				target.opts.UserName = line
+				target.Opts.UserName = line
 			}
-			pubX, _ := hex.DecodeString(target.opts.PubCert)
-			target.cycle.api.Name = `checkLogin`
-			target.cycle.api.URL = fmt.Sprintf(enrollAPI, parsedURL.Host, parsedURL.Path, utils.RandGUID())
-			target.cycle.api.Data = fmt.Sprintf(postEnrol, b64encode([]byte(utils.RandUUID(16))), aes256encrypt(target.opts.UserName), b64encode(pubX))
-			target.cycle.api.Method = `PUT`
-			target.cycle.api.Opts = &map[string]interface{}{
+			pubX, _ := hex.DecodeString(target.Opts.PubCert)
+			target.Cycle.API.Name = `checkLogin`
+			target.Cycle.API.URL = fmt.Sprintf(enrollAPI, parsedURL.Host, parsedURL.Path, utils.RandGUID())
+			target.Cycle.API.Data = fmt.Sprintf(postEnrol, b64encode([]byte(utils.RandUUID(16))), aes256encrypt(target.Opts.UserName), b64encode(pubX))
+			target.Cycle.API.Method = `PUT`
+			target.Cycle.API.Opts = &map[string]interface{}{
 				"Header": map[string][]string{
-					"User-Agent":   []string{target.opts.Agent},
+					"User-Agent":   []string{target.Opts.Agent},
 					"Content-Type": []string{"text/plain"}}}
 		}
 
-		target.thread()
+		target.Thread()
 	}
 
-	for i := 0; i < m.cycle.length; i++ {
-		<-*m.cycle.buff
+	for i := 0; i < m.Cycle.Length; i++ {
+		<-*m.Cycle.Buff
 	}
-	close(*m.cycle.block)
-	close(*m.cycle.buff)
+	close(*m.Cycle.Block)
+	close(*m.Cycle.Buff)
 }
 
-// thread represents the buffing process to loop multiple requests
-func (m *mdma) thread() {
-	*m.cycle.block <- true
+// Thread represents the buffing process to loop multiple requests
+func (m *MDMA) Thread() {
+	*m.Cycle.Block <- true
 	go func() {
-		m.cycle.api.WebCall()
-		if m.cycle.api.Resp.Status == 0 {
-			if m.opts.Miss < m.opts.Retry {
-				m.opts.Miss++
-				m.logr.Infof([]interface{}{m.opts.Endpoint, m.opts.UserName, m.opts.Password}, "Retrying Request")
-				<-*m.cycle.block
-				m.thread()
+		m.Cycle.API.WebCall()
+		if m.Cycle.API.Resp.Status == 0 {
+			if m.Opts.Miss < m.Opts.Retry {
+				m.Opts.Miss++
+				m.Logr.Infof([]interface{}{m.Opts.Endpoint, m.Opts.UserName, m.Opts.Password}, "Retrying Request")
+				<-*m.Cycle.Block
+				m.Thread()
 				return
 			}
-			m.logr.Failf([]interface{}{m.opts.Endpoint, m.opts.UserName, m.opts.Password}, "Null Server Response")
+			m.Logr.Failf([]interface{}{m.Opts.Endpoint, m.Opts.UserName, m.Opts.Password}, "Null Server Response")
 		}
-		m.validate()
+		m.Validate()
 
-		// Sleep interval through buff loop
-		time.Sleep(time.Duration(m.opts.Sleep) * time.Second)
-		<-*m.cycle.block
-		*m.cycle.buff <- true
+		// Sleep interval through Buff loop
+		time.Sleep(time.Duration(m.Opts.Sleep) * time.Second)
+		<-*m.Cycle.Block
+		*m.Cycle.Buff <- true
 	}()
 }
 
-func (m *mdma) validate() {
-	switch m.opts.Method {
-	case "disco":
+func (m *MDMA) Validate() {
+	switch m.Opts.Method {
+	case "Disco":
 		var check struct {
 			ResponseCode   int               `xml:"responseCode"`
 			ActivationInfo string            `xml:"config>activationInfo"`
@@ -308,21 +310,21 @@ func (m *mdma) validate() {
 			return
 		}
 		if check.ResponseCode == 601 {
-			m.logr.Failf([]interface{}{m.opts.Endpoint}, "Discovery Failed")
+			m.Logr.Failf([]interface{}{m.Opts.Endpoint}, "Discovery Failed")
 			return
 		}
 
-		m.cycle.api.Resp.Body = b64decode(check.ActivationInfo)
+		m.Cycle.API.Resp.Body = b64decode(check.ActivationInfo)
 		if m.parser(&check, "json") {
 			return
 		}
 
-		m.logr.Successf([]interface{}{m.opts.Endpoint, check.Endpoint["serverAddress"]}, "Endpoint Discovered")
+		m.Logr.Successf([]interface{}{m.Opts.Endpoint, check.Endpoint["serverAddress"]}, "Endpoint Discovered")
 
-	case "prof":
-		m.logr.Successf(nil, "Temporary Profile: \n%s\n", m.cycle.api.Resp.Header)
+	case "Prof":
+		m.Logr.Successf(nil, "Temporary Profile: \n%s\n", m.Cycle.API.Resp.Header)
 
-	case "auth-user":
+	case _authUser:
 		var check struct {
 			Code   string `xml:"code"`
 			MSG    string `xml:"message"`
@@ -331,46 +333,45 @@ func (m *mdma) validate() {
 		if m.parser(&check, "xml") {
 			return
 		}
-		m.logr.Successf([]interface{}{m.opts.UserName, m.opts.Password}, "Authentication Successful")
-
+		m.Logr.Successf([]interface{}{m.Opts.UserName, m.Opts.Password}, "Authentication Successful")
 	}
 }
 
 // Call represents the switch function for activating all class methods
-func (m *mdma) Call() {
-	switch m.opts.Method {
-	case "disco":
-		if m.opts.Email == "" {
-			email := "dave@" + m.opts.Endpoint
-			m.logr.Infof([]interface{}{m.opts.Method}, "Using sample email: %s", email)
-			m.opts.Email = email
+func (m *MDMA) Call() {
+	switch m.Opts.Method {
+	case "Disco":
+		if m.Opts.Email == "" {
+			email := "dave@" + m.Opts.Endpoint
+			m.Logr.Infof([]interface{}{m.Opts.Method}, "Using sample email: %s", email)
+			m.Opts.Email = email
 		}
-		m.disco()
+		m.Disco()
 
-	case "prof":
-		if m.opts.Endpoint == "" {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "Endpoint required")
+	case "Prof":
+		if m.Opts.Endpoint == "" {
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Endpoint required")
 			return
 		}
-		m.prof()
+		m.Prof()
 
-	case "auth-user":
-		if (m.opts.UserName == "" && m.opts.File == "") || m.opts.PubCert == "" {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "User/PubCert or File/PubCert required")
+	case _authUser:
+		if (m.Opts.UserName == "" && m.Opts.File == "") || m.Opts.PubCert == "" {
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "User/PubCert or File/PubCert required")
 			return
 		}
-		m.auth()
+		m.Auth()
 
 	case "decrypt":
-		if m.opts.Endpoint == "" {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "CipherTXT required")
+		if m.Opts.Endpoint == "" {
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "CipherTXT required")
 			return
 		}
-		data := aes256decrypt(m.opts.Endpoint)
-		m.logr.Successf([]interface{}{m.opts.Method}, "%x%s", data[0:16], data[16:])
+		data := aes256decrypt(m.Opts.Endpoint)
+		m.Logr.Successf([]interface{}{m.Opts.Method}, "%x%s", data[0:16], data[16:])
 
 	default:
-		m.logr.StdOut(Methods)
-		m.logr.Fatalf(nil, "Invalid Method Selected %v", m.opts.Method)
+		m.Logr.StdOut(Methods)
+		m.Logr.Fatalf(nil, "Invalid Method Selected %v", m.Opts.Method)
 	}
 }

@@ -1,24 +1,24 @@
 package charges
 
 import (
-	"dauthi/charges/airwatch"
-	"dauthi/charges/blackberry"
-	"dauthi/charges/intune"
-	"dauthi/charges/mfa"
-	mobileiron "dauthi/charges/mobileiron"
-	xenmobile "dauthi/charges/xenMobile"
+	"github.com/mr-pmillz/dauthi/charges/airwatch"
+	"github.com/mr-pmillz/dauthi/charges/blackberry"
+	"github.com/mr-pmillz/dauthi/charges/intune"
+	"github.com/mr-pmillz/dauthi/charges/mfa"
+	"github.com/mr-pmillz/dauthi/charges/mobileiron"
+	xenmobile "github.com/mr-pmillz/dauthi/charges/xenMobile"
 
-	"dauthi/utils"
+	"github.com/mr-pmillz/dauthi/utils"
 )
 
-// Interface supporting charge classes
-type mgr interface {
+// Manager is an interface supporting charge classes
+type Manager interface {
 	Call()
 }
 
-// Interface wrapper
+// Attack Interface wrapper
 type Attack struct {
-	mgr
+	Manager
 }
 
 // charge constants
@@ -36,7 +36,7 @@ const (
 	`
 )
 
-// Charge init
+// Init for Charge
 func Init(t string, o *utils.ChargeOpts) *Attack {
 	switch t {
 	case "airwatch":
@@ -75,7 +75,7 @@ func Init(t string, o *utils.ChargeOpts) *Attack {
 	}
 }
 
-// Print charge usages
+// Usage Print charge usages
 func Usage(t string) string {
 	switch t {
 	case "airwatch":

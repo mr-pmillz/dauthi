@@ -13,7 +13,7 @@ type Logger struct {
 	stderr *log.Logger
 }
 
-// NewStdLogger creates that standard logger
+// NewLogger creates that standard logger
 func NewLogger(charge string) *Logger {
 	l := &Logger{
 		charge: charge,
@@ -46,38 +46,38 @@ func (l *Logger) preString(pre []interface{}) string {
 	return val
 }
 
-// Successful stdout formater
+// Successf stdout formater
 func (l *Logger) Successf(pre []interface{}, data string, v ...interface{}) {
 	l.stdout.Printf("[+] ["+l.charge+"] "+l.preString(pre)+data+"\n", v...)
 }
 
-// Failure stdout formater
+// Failf stdout formater
 func (l *Logger) Failf(pre []interface{}, data string, v ...interface{}) {
 	l.stdout.Printf("[-] ["+l.charge+"] "+l.preString(pre)+data+"\n", v...)
 }
 
-// Info stdout formater
+// Infof stdout formater
 func (l *Logger) Infof(pre []interface{}, data string, v ...interface{}) {
 	l.stdout.Printf("[*] ["+l.charge+"] "+l.preString(pre)+data+"\n", v...)
 }
 
-// Error stderr formater
+// Errorf stderr formater
 func (l *Logger) Errorf(pre []interface{}, data string, v ...interface{}) {
 	l.stderr.Printf("[ERROR] ["+l.charge+"] "+l.preString(pre)+data+"\n", v...)
 }
 
-// Fatal stderr formater
+// Fatalf stderr formater
 func (l *Logger) Fatalf(pre []interface{}, data string, v ...interface{}) {
 	l.stderr.Printf("[FATAL] ["+l.charge+"] "+l.preString(pre)+data+"\n", v...)
 	os.Exit(1)
 }
 
-// Debug stdout formater
+// Debugf stdout formater
 func (l *Logger) Debugf(pre []interface{}, data string, v ...interface{}) {
 	l.stdout.Printf("[DEBUG] ["+l.charge+"] "+l.preString(pre)+data+"\n", v...)
 }
 
-// Standard stdout formater
+// StdOut standard out formater
 func (l *Logger) StdOut(data string, v ...interface{}) {
 	l.stdout.Printf("["+l.charge+"] "+data+"\n", v...)
 }

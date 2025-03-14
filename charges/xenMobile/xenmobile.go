@@ -5,20 +5,22 @@ import (
 	"strings"
 	"time"
 
-	"dauthi/utils"
+	"github.com/mr-pmillz/dauthi/utils"
 )
 
-type mdma struct {
-	opts utils.ChargeOpts
-	logr *utils.Logger
-	cycle
+// MDMA ...
+type MDMA struct {
+	Opts utils.ChargeOpts
+	Logr *utils.Logger
+	Cycle
 }
 
-type cycle struct {
-	buff   *chan bool
-	block  *chan bool
-	length int
-	api    *utils.API
+// Cycle ...
+type Cycle struct {
+	Buff   *chan bool
+	Block  *chan bool
+	Length int
+	API    *utils.API
 }
 
 const (
@@ -32,9 +34,9 @@ const (
 	// Methods are available tool methods
 	Methods = `
   XenMobile Methods:
-    disco                  XenMobile endpoint discovery query
-    prof                   Profile the XenMobile provisioning details
-    auth                   XenMobile user based authentication
+    Disco                  XenMobile endpoint discovery query
+    Prof                   Profile the XenMobile provisioning details
+    Auth                   XenMobile user based authentication
 	`
 
 	discoveryAPI  = `https://discovery.cem.cloud.us/ads/root/domain/%s/`
@@ -42,10 +44,11 @@ const (
 	checkLogin    = `https://%s/zdm/cxf/checklogin`
 
 	POSTcheckLogin = `login=%s&password=%s&isAvengerEnabled=false&isEmmCapable=true`
+	auth           = "Auth"
 )
 
-// Init mdma with default values and return obj
-func Init(o utils.ChargeOpts) *mdma {
+// Init MDMA with default values and return obj
+func Init(o utils.ChargeOpts) *MDMA {
 	if o.Agent == "" {
 		o.Agent = "CitrixReceiver/com.zenprise build/22.11.0 Android/11 VpnCapable X1Class"
 	}
@@ -54,11 +57,11 @@ func Init(o utils.ChargeOpts) *mdma {
 	}
 	log := utils.NewLogger("xenmobile")
 
-	return &mdma{
-		opts: o,
-		logr: log,
-		cycle: cycle{
-			api: &utils.API{
+	return &MDMA{
+		Opts: o,
+		Logr: log,
+		Cycle: Cycle{
+			API: &utils.API{
 				Debug: o.Debug,
 				Log:   log,
 				Proxy: o.Proxy},
@@ -66,29 +69,29 @@ func Init(o utils.ChargeOpts) *mdma {
 	}
 }
 
-// clone() copies an *mdma for process threading
-func (m *mdma) clone() *mdma {
-	clone := Init(m.opts) // assign target
-	clone.cycle.block = m.cycle.block
-	clone.cycle.buff = m.cycle.buff
+// Clone copies an *MDMA for process threading
+func (m *MDMA) Clone() *MDMA {
+	clone := Init(m.Opts) // assign target
+	clone.Cycle.Block = m.Cycle.Block
+	clone.Cycle.Buff = m.Cycle.Buff
 
 	return clone
 }
 
-// Wrapper to parse JSON/XML objects
-func (m *mdma) parser(data interface{}, p string) bool {
+// Parser wrapper to parse JSON/XML objects
+func (m *MDMA) Parser(data interface{}, p string) bool {
 	switch p {
 	case "json":
-		err := m.cycle.api.Resp.ParseJSON(data)
+		err := m.Cycle.API.Resp.ParseJSON(data)
 		if err != nil {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "Response Marshall Error: %v", err)
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Response Marshall Error: %v", err)
 			return true
 		}
 
 	case "xml":
-		err := m.cycle.api.Resp.ParseXML(data)
+		err := m.Cycle.API.Resp.ParseXML(data)
 		if err != nil {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "Response Marshall Error: %v", err)
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Response Marshall Error: %v", err)
 			return true
 		}
 	}
@@ -96,122 +99,124 @@ func (m *mdma) parser(data interface{}, p string) bool {
 	return false
 }
 
-func (m *mdma) disco() {
-	m.cycle.api.Name = `discoveryAPI`
-	m.cycle.api.URL = fmt.Sprintf(discoveryAPI, m.opts.Endpoint)
-	m.cycle.api.Data = ""
-	m.cycle.api.Method = `GET`
+// Disco ...
+func (m *MDMA) Disco() {
+	m.Cycle.API.Name = `discoveryAPI`
+	m.Cycle.API.URL = fmt.Sprintf(discoveryAPI, m.Opts.Endpoint)
+	m.Cycle.API.Data = ""
+	m.Cycle.API.Method = `GET`
 
-	m.cycle.api.WebCall()
-	if m.cycle.api.Resp.Status != 200 {
-		m.logr.Failf([]interface{}{m.opts.Endpoint}, "Discovery Failed")
+	m.Cycle.API.WebCall()
+	if m.Cycle.API.Resp.Status != 200 {
+		m.Logr.Failf([]interface{}{m.Opts.Endpoint}, "Discovery Failed")
 		return
 	}
 
-	m.validate()
+	m.Validate()
 }
 
-func (m *mdma) prof() {
-	m.cycle.api.Name = `getServerInfo`
-	m.cycle.api.URL = fmt.Sprintf(getServerInfo, m.opts.Endpoint)
-	m.cycle.api.Data = ""
-	m.cycle.api.Method = `GET`
-	m.cycle.api.Opts = &map[string]interface{}{
+// Prof ...
+func (m *MDMA) Prof() {
+	m.Cycle.API.Name = `getServerInfo`
+	m.Cycle.API.URL = fmt.Sprintf(getServerInfo, m.Opts.Endpoint)
+	m.Cycle.API.Data = ""
+	m.Cycle.API.Method = `GET`
+	m.Cycle.API.Opts = &map[string]interface{}{
 		"Header": map[string][]string{
-			"User-Agent": []string{m.opts.Agent}}}
+			"User-Agent": []string{m.Opts.Agent}}}
 
-	m.cycle.api.WebCall()
-	if m.cycle.api.Resp.Status != 200 {
-		m.logr.Failf([]interface{}{m.opts.Endpoint}, "Profile Failed")
+	m.Cycle.API.WebCall()
+	if m.Cycle.API.Resp.Status != 200 {
+		m.Logr.Failf([]interface{}{m.Opts.Endpoint}, "Profile Failed")
 		return
 	}
 
-	m.validate()
+	m.Validate()
 }
 
-func (m *mdma) auth() {
+// Auth ...
+func (m *MDMA) Auth() {
 	var file []byte
 	var err error
 
-	if m.opts.File != "" {
-		file, err = utils.ReadFile(m.opts.File)
+	if m.Opts.File != "" {
+		file, err = utils.ReadFile(m.Opts.File)
 		if err != nil {
-			m.logr.Fatalf([]interface{}{m.opts.File}, "File Read Failure")
+			m.Logr.Fatalf([]interface{}{m.Opts.File}, "File Read Failure")
 		}
 	}
 
 	lines := strings.Split(string(file), "\n")
-	block := make(chan bool, m.opts.Threads)
+	block := make(chan bool, m.Opts.Threads)
 	buff := make(chan bool, len(lines))
-	m.cycle.block = &block
-	m.cycle.buff = &buff
-	m.cycle.length = len(lines)
+	m.Cycle.Block = &block
+	m.Cycle.Buff = &buff
+	m.Cycle.Length = len(lines)
 
-	m.logr.Infof([]interface{}{m.opts.Method}, "threading %d values across %d threads", m.cycle.length, m.opts.Threads)
+	m.Logr.Infof([]interface{}{m.Opts.Method}, "threading %d values across %d threads", m.Cycle.Length, m.Opts.Threads)
 
 	for _, line := range lines {
 		if len(lines) > 1 && line == "" {
-			*m.cycle.buff <- true
+			*m.Cycle.Buff <- true
 			continue
 		}
 
-		target := m.clone() // assign target
+		target := m.Clone() // assign target
 
-		switch m.opts.Method {
-		case "auth":
+		if m.Opts.Method == auth {
 			if line == "" {
-				line = target.opts.UserName
+				_ = target.Opts.UserName
 			} else {
-				target.opts.UserName = line
+				target.Opts.UserName = line
 			}
-
-			target.cycle.api.Name = `checkLogin`
-			target.cycle.api.URL = fmt.Sprintf(checkLogin, target.opts.Endpoint)
-			target.cycle.api.Data = fmt.Sprintf(POSTcheckLogin, target.opts.UserName, target.opts.Password)
-			target.cycle.api.Method = `POST`
-			target.cycle.api.Opts = &map[string]interface{}{
+			target.Cycle.API.Name = `checkLogin`
+			target.Cycle.API.URL = fmt.Sprintf(checkLogin, target.Opts.Endpoint)
+			target.Cycle.API.Data = fmt.Sprintf(POSTcheckLogin, target.Opts.UserName, target.Opts.Password)
+			target.Cycle.API.Method = `POST`
+			target.Cycle.API.Opts = &map[string]interface{}{
 				"Header": map[string][]string{
-					"User-Agent":   []string{target.opts.Agent},
+					"User-Agent":   []string{target.Opts.Agent},
 					"Content-Type": []string{"application/x-www-form-urlencoded"}}}
 		}
 
-		target.thread()
+		target.Thread()
 	}
 
-	for i := 0; i < m.cycle.length; i++ {
-		<-*m.cycle.buff
+	for i := 0; i < m.Cycle.Length; i++ {
+		<-*m.Cycle.Buff
 	}
-	close(*m.cycle.block)
-	close(*m.cycle.buff)
+	close(*m.Cycle.Block)
+	close(*m.Cycle.Buff)
 }
 
-// thread represents the threading process to loop multiple requests
-func (m *mdma) thread() {
-	*m.cycle.block <- true
+// Thread represents the threading process to loop multiple requests
+func (m *MDMA) Thread() {
+	*m.Cycle.Block <- true
 	go func() {
-		m.cycle.api.WebCall()
-		if m.cycle.api.Resp.Status == 0 {
-			if m.opts.Miss < m.opts.Retry {
-				m.opts.Miss++
-				m.logr.Infof([]interface{}{m.opts.Endpoint, m.opts.UserName, m.opts.Password}, "Retrying Request")
-				<-*m.cycle.block
-				m.thread()
+		m.Cycle.API.WebCall()
+		if m.Cycle.API.Resp.Status == 0 {
+			if m.Opts.Miss < m.Opts.Retry {
+				m.Opts.Miss++
+				m.Logr.Infof([]interface{}{m.Opts.Endpoint, m.Opts.UserName, m.Opts.Password}, "Retrying Request")
+				<-*m.Cycle.Block
+				m.Thread()
 				return
 			}
-			m.logr.Failf([]interface{}{m.opts.UserName, m.opts.Password}, "Null Server Response")
+			m.Logr.Failf([]interface{}{m.Opts.UserName, m.Opts.Password}, "Null Server Response")
 		}
-		m.validate()
+		m.Validate()
 
-		// Sleep interval through thread loop
-		time.Sleep(time.Duration(m.opts.Sleep) * time.Second)
-		<-*m.cycle.block
-		*m.cycle.buff <- true
+		// Sleep interval through Thread loop
+		time.Sleep(time.Duration(m.Opts.Sleep) * time.Second)
+		<-*m.Cycle.Block
+		*m.Cycle.Buff <- true
 	}()
 }
 
-func (m *mdma) validate() {
-	switch m.opts.Method {
-	case "disco":
+// Validate ...
+func (m *MDMA) Validate() {
+	switch m.Opts.Method {
+	case "Disco":
 		var check struct {
 			WorkSpace struct {
 				URL []struct {
@@ -220,19 +225,19 @@ func (m *mdma) validate() {
 			} `json:"workspace"`
 			DomainType string `json:"domainType"`
 		}
-		if m.parser(&check, "json") {
+		if m.Parser(&check, "json") {
 			return
 		}
 
 		if len(check.WorkSpace.URL) > 0 {
 			for _, url := range check.WorkSpace.URL {
-				m.logr.Successf([]interface{}{url.Value}, "Endpoint Discovery")
+				m.Logr.Successf([]interface{}{url.Value}, "Endpoint Discovery")
 			}
 		} else {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "Failed to identify Endpoints")
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Failed to identify Endpoints")
 		}
 
-	case "prof":
+	case "Prof":
 		var check struct {
 			Enabled  bool `xml:"result>serverInfo>enrollmentConfig>enrollmentEnabled"`
 			PIN      bool `xml:"result>serverInfo>enrollmentConfig>enrollmentPIN"`
@@ -240,67 +245,66 @@ func (m *mdma) validate() {
 			Type     int  `xml:"result>serverInfo>enrollmentConfig>enrollmentType"`
 			User     bool `xml:"result>serverInfo>enrollmentConfig>enrollmentUsername"`
 		}
-		if m.parser(&check, "xml") {
+		if m.Parser(&check, "xml") {
 			return
 		}
 
 		if check.Enabled {
-			m.logr.Successf([]interface{}{check.Type}, "Enrollment Enabled")
+			m.Logr.Successf([]interface{}{check.Type}, "Enrollment Enabled")
 		} else {
-			m.logr.Failf([]interface{}{check.Type}, "Enrollment Disabled")
+			m.Logr.Failf([]interface{}{check.Type}, "Enrollment Disabled")
 		}
 		if check.PIN {
-			m.logr.Successf([]interface{}{check.Type}, "PIN Authentication Enabled")
+			m.Logr.Successf([]interface{}{check.Type}, "PIN Authentication Enabled")
 		}
 		if check.Password {
-			m.logr.Successf([]interface{}{check.Type}, "Password Authentication Enabled")
+			m.Logr.Successf([]interface{}{check.Type}, "Password Authentication Enabled")
 		}
 		if check.User {
-			m.logr.Successf([]interface{}{check.Type}, "Username Authentication Enabled")
+			m.Logr.Successf([]interface{}{check.Type}, "Username Authentication Enabled")
 		}
 
-	case "auth":
+	case auth:
 		var check struct {
 			Answer bool `json:"result>checkLogin>answer"`
 		}
-		if m.parser(&check, "json") {
+		if m.Parser(&check, "json") {
 			return
 		}
 
 		if check.Answer {
-			m.logr.Successf([]interface{}{m.opts.UserName, m.opts.Password}, "Authentication Successful")
+			m.Logr.Successf([]interface{}{m.Opts.UserName, m.Opts.Password}, "Authentication Successful")
 			return
 		}
-		m.logr.Failf([]interface{}{m.opts.UserName, m.opts.Password}, "Authentication Failed")
-
+		m.Logr.Failf([]interface{}{m.Opts.UserName, m.Opts.Password}, "Authentication Failed")
 	}
 }
 
 // Call represents the switch function for activating all class methods
-func (m *mdma) Call() {
-	switch m.opts.Method {
-	case "disco":
-		if m.opts.Endpoint == "" {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "Endpoint required")
+func (m *MDMA) Call() {
+	switch m.Opts.Method {
+	case "Disco":
+		if m.Opts.Endpoint == "" {
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Endpoint required")
 		}
-		m.disco()
+		m.Disco()
 
-	case "prof":
-		if m.opts.Endpoint == "" {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "Endpoint required")
+	case "Prof":
+		if m.Opts.Endpoint == "" {
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "Endpoint required")
 			return
 		}
-		m.prof()
+		m.Prof()
 
-	case "auth":
-		if (m.opts.UserName == "" && m.opts.File == "") || m.opts.Password == "" {
-			m.logr.Errorf([]interface{}{m.opts.Method}, "User/Password or File/Password required")
+	case auth:
+		if (m.Opts.UserName == "" && m.Opts.File == "") || m.Opts.Password == "" {
+			m.Logr.Errorf([]interface{}{m.Opts.Method}, "User/Password or File/Password required")
 			return
 		}
-		m.auth()
+		m.Auth()
 
 	default:
-		m.logr.StdOut(Methods)
-		m.logr.Fatalf(nil, "Invalid Method Selected %v", m.opts.Method)
+		m.Logr.StdOut(Methods)
+		m.Logr.Fatalf(nil, "Invalid Method Selected %v", m.Opts.Method)
 	}
 }

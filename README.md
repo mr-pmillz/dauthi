@@ -194,38 +194,38 @@ const (
 	Methods = ``
 )
 
-// Init mdma with default values and return obj
-func Init(o utils.ChargeOpts) *mdma {
+// Init MDMA with default values and return obj
+func Init(o utils.ChargeOpts) *MDMA {
 
 }
 
 // disco is the discovery function call
-func (m *mdma) disco() {
+func (m *MDMA) Disco() {
 
 }
 
-// prof is the function call for pulling validation details from the MDM
-func (m *mdma) prof() {
+// Prof is the function call for pulling validation details from the MDM
+func (m *MDMA) Prof() {
 
 }
 
-// auth is the function call for performing authentication functions
-func (m *mdma) auth() {
+// Auth is the function call for performing authentication functions
+func (m *MDMA) Auth() {
 
 }
 
-// thread is the function call for recursion
-func (m *mdma) thread() {
+// Thread is the function call for recursion
+func (m *MDMA) Thread() {
 
 }
 
-// validate is used to validate the return context of a Charge requests
-func (m *mdma) validate() {
+// Validate is used to validate the return context of a Charge requests
+func (m *MDMA) Validate() {
 
 }
 
 // Call represents the switch function for activating all class methods
-func (m *mdma) Call() {
+func (m *MDMA) Call() {
 
 }
 ```

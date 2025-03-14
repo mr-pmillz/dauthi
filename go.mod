@@ -1,6 +1,6 @@
-module dauthi
+module github.com/mr-pmillz/dauthi
 
-go 1.22.1
+go 1.23.0
 
 require (
 	github.com/andreburgaud/crypt2go v1.5.0
