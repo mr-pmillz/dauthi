@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented [here](https://github.com/mr-pmillz/dauthi/blob/main/CHANGELOG.md?ref_type=heads)
 
+## [1.0.6](https://github.com/mr-pmillz/dauthi/compare/v1.0.5...v1.0.6) - 2025-03-14
+
+### ⚙️  Miscellaneous
+
+- Version bump - ([654d086](https://github.com/mr-pmillz/dauthi/commit/654d086a2872e4dad23125fa4d2f78fa66230a2c))
+- Merge branch 'main' of github.com:mr-pmillz/dauthi - ([f11a48f](https://github.com/mr-pmillz/dauthi/commit/f11a48f9466183a012f75780ec21baeec308d401))
+- Update changelog - ([3a14693](https://github.com/mr-pmillz/dauthi/commit/3a1469389bc641eed46212ae9d73e2a340f36256))
+
+## [1.0.5](https://github.com/mr-pmillz/dauthi/compare/v1.0.4...v1.0.5) - 2025-03-14
+
+### 📦 Dependencies
+
+- Deps update - ([c97c29d](https://github.com/mr-pmillz/dauthi/commit/c97c29d1a579d6b88d787851b51f177b5b9e7b90))
+
+### ⚙️  Miscellaneous
+
+- Set other args to lowercase, version bump - ([1677c98](https://github.com/mr-pmillz/dauthi/commit/1677c98758d23c2203c552fbf1b0b48cfedbe70d))
+
 ## [1.0.4](https://github.com/mr-pmillz/dauthi/compare/v1.0.3...v1.0.4) - 2025-03-14
 
 ### ⚙️  Miscellaneous
