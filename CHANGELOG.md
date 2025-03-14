@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented [here](https://github.com/mr-pmillz/dauthi/blob/main/CHANGELOG.md?ref_type=heads)
 
+## [1.0.4](https://github.com/mr-pmillz/dauthi/compare/v1.0.3...v1.0.4) - 2025-03-14
+
+### ⚙️  Miscellaneous
+
+- Set disco to lowercase intune.go version bump - ([3f74f64](https://github.com/mr-pmillz/dauthi/commit/3f74f642fff63dcfa2c328e3d94edea23a574fc4))
+- Update changelog - ([6b39621](https://github.com/mr-pmillz/dauthi/commit/6b39621f632b3d58a2f1325316579271faeb573e))
+
 ## [1.0.3](https://github.com/mr-pmillz/dauthi/compare/v1.0.2...v1.0.3) - 2025-03-14
 
 ### ⚙️  Miscellaneous
