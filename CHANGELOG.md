@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented [here](https://github.com/mr-pmillz/dauthi/blob/main/CHANGELOG.md?ref_type=heads)
 
+## [1.0.8](https://github.com/mr-pmillz/dauthi/compare/v1.0.7...v1.0.8) - 2025-03-14
+
+### ⚙️  Miscellaneous
+
+- Version bump - ([fe4ef74](https://github.com/mr-pmillz/dauthi/commit/fe4ef74b85e8ade94f7bbd61a8c07360d13a7ac2))
+- Merge branch 'main' of github.com:mr-pmillz/dauthi - ([b4c3f31](https://github.com/mr-pmillz/dauthi/commit/b4c3f31a964493ec2285b789059c06b2d5a2283d))
+- Update changelog - ([b88ece9](https://github.com/mr-pmillz/dauthi/commit/b88ece941f2b72c6ae1fdbc66a691fdcd312d29e))
+
+## [1.0.7](https://github.com/mr-pmillz/dauthi/compare/v1.0.6...v1.0.7) - 2025-03-14
+
+### 🐛 Bug fixes
+
+- Fixed intune Init func - ([5e8d9a0](https://github.com/mr-pmillz/dauthi/commit/5e8d9a0adf463295b51f4a1c61cdf61a7def31a9))
+
 ## [1.0.6](https://github.com/mr-pmillz/dauthi/compare/v1.0.5...v1.0.6) - 2025-03-14
 
 ### ⚙️  Miscellaneous
