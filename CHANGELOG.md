@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented [here](https://github.com/mr-pmillz/dauthi/blob/main/CHANGELOG.md?ref_type=heads)
 
+## [1.0.2](https://github.com/mr-pmillz/dauthi/compare/v1.0.1...v1.0.2) - 2025-03-14
+
+### ⚙️  Miscellaneous
+
+- Trigger cicd version bump - ([c926141](https://github.com/mr-pmillz/dauthi/commit/c926141cf81d72a009547f02d5cdd7b42b6fd069))
+
+## [1.0.1](https://github.com/mr-pmillz/dauthi/compare/v1.0.0...v1.0.1) - 2025-03-14
+
+### ✨ New features
+
+- Added changelog - ([ba2a9e7](https://github.com/mr-pmillz/dauthi/commit/ba2a9e7f5d17bf4b0de4ec96fef82c87ce6c62f2))
+
+### ⚙️  Miscellaneous
+
+- Version bump - ([493bac3](https://github.com/mr-pmillz/dauthi/commit/493bac31c773b36afd58ed9b2a05949c22383bf3))
+
 ## [1.0.0] - 2025-03-14
 
 ### 🚜 Refactor
