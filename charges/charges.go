@@ -68,7 +68,7 @@ func Init(t string, o *utils.ChargeOpts) *Attack {
 		blackberry.Init(*o).Call()
 		intune.Init(*o).Call()
 
-		return nil
+		return &Attack{intune.Init(*o)}
 
 	default:
 		return nil

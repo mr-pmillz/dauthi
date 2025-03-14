@@ -21,4 +21,4 @@ RELEASE_CHANGELOG.md
 report.xml
 coverage.xml
 dauthi
-
+charges/intune/intune_test.go
