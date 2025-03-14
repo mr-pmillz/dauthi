@@ -76,7 +76,7 @@ const (
 		`</osFamily><osVersion>11</osVersion><userId>%s</userId></requestInfoType>`
 	postEnrol = `<?xml version="1.0"?><enrollment version="3.0"><transaction-id>%s</transaction-id>` +
 		`<speke-request><user-id>0;1;%s</user-id><client-public-key>%s</client-public-key></speke-request></enrollment>`
-	_authUser = "Auth-user"
+	_authUser = "auth-user"
 )
 
 func b64encode(v []byte) string {

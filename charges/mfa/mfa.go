@@ -39,7 +39,7 @@ const (
 
 	oktaAuthPOST = `{"options": {"warnBeforePasswordExpired": true, "multiOptionalFactorEnroll": true}, ` +
 		`"subdomain": "%s", "username": "%s", "password": "%s"}`
-	_authOkta = "Auth-okta"
+	_authOkta = "auth-okta"
 )
 
 // Init MDMA with default values and return obj

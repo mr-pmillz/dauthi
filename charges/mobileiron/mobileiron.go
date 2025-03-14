@@ -86,10 +86,10 @@ const (
 
 	gatewayCustomerAPI = `https://appgw.mobileiron.com/api/v1/gateway/customers/servers?api-key=%s&domain=%s`
 	TCP                = "tcp"
-	authUser           = "Auth-user"
-	authPin            = "Auth-pin"
-	authPinPass        = "Auth-pinpass" //nolint:gosec
-	authPinUser        = "Auth-pinuser"
+	authUser           = "auth-user"
+	authPin            = "auth-pin"
+	authPinPass        = "auth-pinpass" //nolint:gosec
+	authPinUser        = "auth-pinuser"
 	_enum              = "enum"
 )
 

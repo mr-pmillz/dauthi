@@ -81,12 +81,12 @@ const (
 	// POSTemailDiscoAuth           = `SessionId=%s&DevicePlatformId=0&IsAndroidManagementApiEnrollment=False&UserName=%s&Password=%s&Next=Next`
 	GET          = `GET`
 	POST         = `POST`
-	authBoxLGID  = "Auth-box-lgid"
+	authBoxLGID  = "auth-box-lgid"
 	enumGID      = "enum-gid"
-	authVal      = "Auth-val"
-	authBoxReg   = "Auth-box-reg"
-	authBoxLogin = "Auth-box-login"
-	authEndpoint = `authenticationEndpoint`
+	authVal      = "auth-val"
+	authBoxReg   = "auth-box-reg"
+	authBoxLogin = "auth-box-login"
+	authEndpoint = "authenticationEndpoint"
 )
 
 // Init MDMA with default values and return obj

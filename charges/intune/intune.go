@@ -74,14 +74,14 @@ const (
 		`"remote_auth_credential": {"userId": "%s", "secret": "%s", "email_address": "%s"}, ` +
 		`"display_name": "%s"}`
 	GET              = `GET`
-	ProfOutlook      = "Prof-outlook"
+	ProfOutlook      = "prof-outlook"
 	POST             = `POST`
 	enumOneDriveFull = "enum-onedrive-full"
-	authMSOL         = "Auth-msol"
+	authMSOL         = "auth-msol"
 	enumOneDrive     = "enum-onedrive"
-	authAsync        = "Auth-async"
+	authAsync        = "auth-async"
 	enumOutlook      = "enum-outlook"
-	authOutlook      = "Auth-outlook"
+	authOutlook      = "auth-outlook"
 )
 
 func b64encode(v []byte) string {

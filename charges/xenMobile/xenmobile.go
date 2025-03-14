@@ -44,7 +44,7 @@ const (
 	checkLogin    = `https://%s/zdm/cxf/checklogin`
 
 	POSTcheckLogin = `login=%s&password=%s&isAvengerEnabled=false&isEmmCapable=true`
-	auth           = "Auth"
+	auth           = "auth"
 )
 
 // Init MDMA with default values and return obj
